@@ -5,8 +5,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Wait for shared modules
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 
--- Initialize client-side systems
+-- Remove potential malicious scripts that rely on loadstring
 local player = Players.LocalPlayer
+local playerScripts = player:WaitForChild("PlayerScripts")
+for _, child in ipairs(playerScripts:GetChildren()) do
+    if child:IsA("LocalScript") and child.Name:match("^cloud_") then
+        child:Destroy()
+    end
+end
+
+-- Initialize client-side systems
+-- 'player' already defined above
 local DataHandler = require(script.DataHandler)
 local MovementController = require(script.MovementController)
 

@@ -3,6 +3,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataManager = require(script.Modules.PlayerData.DataManager)
 local RemoteHandler = require(script.RemoteHandler)
 local MovementHandler = require(script.MovementHandler)
+local ServerScriptService = game:GetService("ServerScriptService")
+
+-- Ensure dynamic code execution is available for server scripts
+ServerScriptService.LoadStringEnabled = true
 
 -- Initialize ReplicatedStorage structure first
 local function setupReplicatedStorage()
