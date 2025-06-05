@@ -2,7 +2,19 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+print("DEBUG DataHandler: Loading RemoteEvents module...")
+
+local RemoteEvents = nil
+local success, err = pcall(function()
+    RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+end)
+
+if not success then
+    warn("DataHandler: Failed to load RemoteEvents:", err)
+    return {}
+end
+
+print("DEBUG DataHandler: RemoteEvents module loaded successfully")
 
 local DataHandler = {}
 local playerData = nil
@@ -16,15 +28,52 @@ local playerDataChangedRemote = nil
 
 -- Initialize remotes when available
 local function initializeRemotes()
-    getPlayerDataRemote = RemoteEvents:GetRemoteFunction(RemoteEvents.GetPlayerData)
-    allocateStatsRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.AllocateStats)
-    playerDataChangedRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDataChanged)
+    print("DEBUG DataHandler: Initializing remotes...")
+    
+    local success1, err1 = pcall(function()
+        getPlayerDataRemote = RemoteEvents:GetRemoteFunction(RemoteEvents.GetPlayerData)
+    end)
+    
+    if not success1 then
+        warn("DataHandler: Failed to get GetPlayerData remote:", err1)
+        return false
+    end
+    
+    local success2, err2 = pcall(function()
+        allocateStatsRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.AllocateStats)
+    end)
+    
+    if not success2 then
+        warn("DataHandler: Failed to get AllocateStats remote:", err2)
+        return false
+    end
+    
+    local success3, err3 = pcall(function()
+        playerDataChangedRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDataChanged)
+    end)
+    
+    if not success3 then
+        warn("DataHandler: Failed to get PlayerDataChanged remote:", err3)
+        return false
+    end
+    
+    print("DEBUG DataHandler: All remotes obtained successfully")
     
     -- Listen for data changes from server
-    playerDataChangedRemote.OnClientEvent:Connect(function(newData)
-        playerData = newData
-        DataHandler.OnDataChanged:Fire(newData)
+    local success4, err4 = pcall(function()
+        playerDataChangedRemote.OnClientEvent:Connect(function(newData)
+            playerData = newData
+            DataHandler.OnDataChanged:Fire(newData)
+        end)
     end)
+    
+    if not success4 then
+        warn("DataHandler: Failed to connect to PlayerDataChanged:", err4)
+        return false
+    end
+    
+    print("DEBUG DataHandler: Event connections established")
+    return true
 end
 
 -- Events
@@ -35,13 +84,90 @@ function DataHandler:GetData()
     return playerData
 end
 
--- Request player data from server
+-- Request player data from server with timeout and retry
 function DataHandler:RequestData()
-    if getPlayerDataRemote then
-        playerData = getPlayerDataRemote:InvokeServer()
-        return playerData
+    print("DEBUG DataHandler: Requesting player data...")
+    
+    if not getPlayerDataRemote then
+        warn("DataHandler: GetPlayerData remote not available")
+        return nil
     end
-    return nil
+    
+    -- Try multiple times with increasing delays
+    for attempt = 1, 3 do
+        print("DEBUG DataHandler: Request attempt", attempt)
+        
+        local success, result = pcall(function()
+            -- Set a timeout for the invoke call
+            local thread = coroutine.running()
+            local responded = false
+            local response = nil
+            
+            spawn(function()
+                local invokeSuccess, invokeResult = pcall(function()
+                    return getPlayerDataRemote:InvokeServer()
+                end)
+                
+                if invokeSuccess then
+                    response = invokeResult
+                else
+                    response = {error = invokeResult}
+                end
+                responded = true
+                coroutine.resume(thread)
+            end)
+            
+            -- Wait up to 5 seconds for response
+            spawn(function()
+                wait(5)
+                if not responded then
+                    responded = true
+                    response = {error = "Timeout"}
+                    coroutine.resume(thread)
+                end
+            end)
+            
+            coroutine.yield()
+            return response
+        end)
+        
+        if success and result and not result.error then
+            playerData = result
+            print("DEBUG DataHandler: Player data received successfully on attempt", attempt)
+            return playerData
+        else
+            warn("DataHandler: Failed to request player data on attempt", attempt, ":", result and result.error or "Unknown error")
+            
+            if attempt < 3 then
+                print("DEBUG DataHandler: Waiting before retry...")
+                wait(attempt) -- Wait 1s, then 2s before retrying
+            end
+        end
+    end
+    
+    warn("DataHandler: All attempts to get player data failed, using default data")
+    -- Return a default profile if all attempts fail
+    playerData = {
+        Stats = {
+            Strength = 0,
+            Agility = 0,
+            Intelligence = 0,
+            Constitution = 0,
+            BreathingMastery = 0,
+            Level = 1,
+            EXP = 0,
+        },
+        Race = "Human",
+        Clan = "Kamado",
+        BreathingStyle = "None",
+        Abilities = {},
+        Inventory = {
+            Yen = 0,
+            Items = {},
+        },
+        UnspentStatPoints = 0,
+    }
+    return playerData
 end
 
 -- Request stat allocation
@@ -53,9 +179,26 @@ end
 
 -- Initialize the data handler
 function DataHandler:Init()
-    initializeRemotes()
-    self:RequestData()
-    print("Client DataHandler initialized")
+    print("DEBUG DataHandler: Starting initialization...")
+    
+    local success, err = pcall(function()
+        local remoteSuccess = initializeRemotes()
+        if not remoteSuccess then
+            error("Failed to initialize remotes")
+        end
+        
+        -- Don't block initialization on data request
+        spawn(function()
+            self:RequestData()
+        end)
+    end)
+    
+    if success then
+        print("DEBUG DataHandler: Initialization completed successfully")
+    else
+        warn("DataHandler: Initialization failed:", err)
+        error("DataHandler initialization failed: " .. tostring(err))
+    end
 end
 
 return DataHandler 

@@ -93,7 +93,10 @@ end
 
 -- Update movement speed
 local function updateMovementSpeed()
-    if not humanoid then return end
+    if not humanoid then 
+        print("DEBUG: Cannot update speed - no humanoid")
+        return 
+    end
     
     local baseSpeed = calculateSpeed()
     local currentSpeed = baseSpeed
@@ -110,10 +113,13 @@ local function updateMovementSpeed()
     end
     
     humanoid.WalkSpeed = currentSpeed
+    print("DEBUG: Set walk speed to:", currentSpeed)
 end
 
 -- Enhanced dash function with better visuals
 local function performDash()
+    print("DEBUG: performDash() called")
+    
     if movementState.isDashing then 
         print("Dash blocked: Already dashing")
         return 
@@ -127,7 +133,7 @@ local function performDash()
     end
     
     if not rootPart or not humanoid then 
-        print("Dash blocked: No character")
+        print("Dash blocked: No character - rootPart:", rootPart, "humanoid:", humanoid)
         return 
     end
     
@@ -252,18 +258,21 @@ local function updateStamina(deltaTime)
     MovementController.OnStaminaChanged:Fire(movementState.stamina, maxStamina)
 end
 
--- Input handling
+-- Input handling with extensive debugging
 local function onKeyDown(key)
+    print("DEBUG: Key pressed:", key.KeyCode.Name)
     local keyCode = key.KeyCode.Name
     
     if keyCode == "W" or keyCode == "A" or keyCode == "S" or keyCode == "D" then
         keysPressed[keyCode] = true
+        print("DEBUG: Movement key", keyCode, "pressed")
     elseif keyCode == "LeftShift" then
         keysPressed.LeftShift = true
         movementState.isSprinting = true
         print("Sprint activated!")
     elseif keyCode == "Space" then
         keysPressed.Space = true
+        print("DEBUG: Space pressed")
         
         -- Wall run jump
         if movementState.isWallRunning then
@@ -288,10 +297,12 @@ local function onKeyDown(key)
 end
 
 local function onKeyUp(key)
+    print("DEBUG: Key released:", key.KeyCode.Name)
     local keyCode = key.KeyCode.Name
     
     if keyCode == "W" or keyCode == "A" or keyCode == "S" or keyCode == "D" then
         keysPressed[keyCode] = false
+        print("DEBUG: Movement key", keyCode, "released")
     elseif keyCode == "LeftShift" then
         keysPressed.LeftShift = false
         movementState.isSprinting = false
@@ -305,13 +316,24 @@ end
 
 -- Character setup
 local function onCharacterAdded(newCharacter)
+    print("DEBUG: Character added:", newCharacter)
     character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Wait for essential parts
+    local success, err = pcall(function()
+        humanoid = character:WaitForChild("Humanoid", 10)
+        rootPart = character:WaitForChild("HumanoidRootPart", 10)
+    end)
+    
+    if not success then
+        warn("Failed to get character parts:", err)
+        return
+    end
     
     print("Character setup complete!")
     print("Humanoid:", humanoid)
     print("RootPart:", rootPart)
+    print("Current WalkSpeed:", humanoid.WalkSpeed)
     
     -- Reset movement state
     movementState.stamina = calculateMaxStamina()
@@ -321,6 +343,8 @@ local function onCharacterAdded(newCharacter)
     
     -- Set initial movement speed
     updateMovementSpeed()
+    
+    print("DEBUG: Character setup completed successfully")
 end
 
 -- Main update loop
@@ -353,18 +377,62 @@ function MovementController:IsWallRunning()
     return movementState.isWallRunning
 end
 
+-- Debug function to test input
+function MovementController:TestInput()
+    print("=== INPUT TEST ===")
+    print("Character:", character)
+    print("Humanoid:", humanoid) 
+    print("RootPart:", rootPart)
+    print("UserInputService available:", UserInputService ~= nil)
+    
+    if humanoid then
+        print("Current WalkSpeed:", humanoid.WalkSpeed)
+        print("MoveDirection:", humanoid.MoveDirection)
+    end
+    
+    print("Movement state:", movementState)
+    print("Keys pressed:", keysPressed)
+end
+
 -- Initialize
 function MovementController:Init()
-    -- Connect events
-    UserInputService.InputBegan:Connect(onKeyDown)
-    UserInputService.InputEnded:Connect(onKeyUp)
+    print("DEBUG: Initializing MovementController...")
+    
+    -- Test UserInputService availability
+    if not UserInputService then
+        warn("UserInputService not available!")
+        return
+    end
+    print("DEBUG: UserInputService available")
+    
+    -- Connect input events with error handling
+    local success1, err1 = pcall(function()
+        UserInputService.InputBegan:Connect(onKeyDown)
+    end)
+    
+    local success2, err2 = pcall(function()
+        UserInputService.InputEnded:Connect(onKeyUp)
+    end)
+    
+    if not success1 then warn("Failed to connect InputBegan:", err1) end
+    if not success2 then warn("Failed to connect InputEnded:", err2) end
+    
+    print("DEBUG: Input events connected")
+    
+    -- Connect heartbeat
     RunService.Heartbeat:Connect(onHeartbeat)
+    print("DEBUG: Heartbeat connected")
     
     -- Setup character
     if player.Character then
+        print("DEBUG: Character already exists, setting up...")
         onCharacterAdded(player.Character)
+    else
+        print("DEBUG: Waiting for character...")
     end
+    
     player.CharacterAdded:Connect(onCharacterAdded)
+    print("DEBUG: CharacterAdded event connected")
     
     -- Listen for stat changes
     DataHandler.OnDataChanged.Event:Connect(function()
@@ -372,6 +440,10 @@ function MovementController:Init()
     end)
     
     print("MovementController initialized with enhanced debugging")
+    
+    -- Test input immediately
+    wait(1)
+    self:TestInput()
 end
 
 return MovementController 

@@ -1,29 +1,77 @@
 -- Client initialization script
+print("=== CLIENT SCRIPT STARTING ===")
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Wait for shared modules
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+print("DEBUG: Services loaded")
 
--- Remove potential malicious scripts that rely on loadstring
-local player = Players.LocalPlayer
-local playerScripts = player:WaitForChild("PlayerScripts")
-for _, child in ipairs(playerScripts:GetChildren()) do
-    if child:IsA("LocalScript") and child.Name:match("^cloud_") then
-        child:Destroy()
-    end
+-- Wait for shared modules with timeout
+local Shared = nil
+local success, err = pcall(function()
+    Shared = ReplicatedStorage:WaitForChild("Shared", 10)
+end)
+
+if not success then
+    warn("Failed to get Shared folder:", err)
+    return
 end
 
+print("DEBUG: Shared folder found")
+
 -- Initialize client-side systems
--- 'player' already defined above
-local DataHandler = require(script.DataHandler)
-local MovementController = require(script.MovementController)
+local player = Players.LocalPlayer
+print("DEBUG: Player:", player.Name)
+
+-- Load modules with error handling
+local DataHandler = nil
+local MovementController = nil
+
+local success1, err1 = pcall(function()
+    DataHandler = require(script.DataHandler)
+end)
+
+if not success1 then
+    warn("Failed to load DataHandler:", err1)
+    return
+end
+
+print("DEBUG: DataHandler loaded")
+
+local success2, err2 = pcall(function()
+    MovementController = require(script.MovementController)
+end)
+
+if not success2 then
+    warn("Failed to load MovementController:", err2)
+    return
+end
+
+print("DEBUG: MovementController loaded")
 
 -- Initialize data handler first
-DataHandler:Init()
+local success3, err3 = pcall(function()
+    DataHandler:Init()
+end)
+
+if not success3 then
+    warn("Failed to initialize DataHandler:", err3)
+    return
+end
+
+print("DEBUG: DataHandler initialized")
 
 -- Initialize movement controller
-MovementController:Init()
+local success4, err4 = pcall(function()
+    MovementController:Init()
+end)
+
+if not success4 then
+    warn("Failed to initialize MovementController:", err4)
+    return
+end
+
+print("DEBUG: MovementController initialized")
 
 -- Setup data change listener
 DataHandler.OnDataChanged.Event:Connect(function(newData)
@@ -54,11 +102,12 @@ MovementController.OnStaminaChanged.Event:Connect(function(currentStamina, maxSt
     end
 end)
 
-print("Client initialized with enhanced movement system")
+print("=== CLIENT INITIALIZED SUCCESSFULLY ===")
+print("Enhanced movement system ready!")
 print("Controls:")
 print("- WASD: Move")
 print("- Left Shift: Sprint (consumes stamina)")
 print("- Q: Dash (2 second cooldown)")
 print("- Space: Jump (enhanced wall jump when wall running)")
-print("Hello world, from client!")
+print("=== PRESS KEYS TO TEST MOVEMENT ===")
 
