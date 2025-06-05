@@ -1,1 +1,4 @@
-print("Hello world, from client!")
+require(script.ClientModules.Movement.DashController)
+
+print("Client initialized")
+
