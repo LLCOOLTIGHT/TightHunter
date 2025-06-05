@@ -1,4 +1,6 @@
+-- ProfileService: Handles DataStore operations for player profiles
 local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
 
 local dataStore = DataStoreService:GetDataStore("PlayerProfiles")
 local ProfileTemplate = require(script.Parent.ProfileTemplate)
@@ -34,9 +36,13 @@ end
 
 function ProfileService:SaveProfile(player, profile)
     local userId = tostring(player.UserId)
-    pcall(function()
+    local success = pcall(function()
         dataStore:SetAsync(userId, profile)
     end)
+    
+    if not success then
+        warn("Failed to save profile for player: " .. player.Name)
+    end
 end
 
 return ProfileService

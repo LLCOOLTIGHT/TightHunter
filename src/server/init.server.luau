@@ -1,5 +1,30 @@
+-- Server initialization script
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataManager = require(script.Parent.Modules.PlayerData.DataManager)
+local RemoteHandler = require(script.Parent.RemoteHandler)
 
+-- Initialize ReplicatedStorage structure first
+local function setupReplicatedStorage()
+    -- Setup shared modules and remote events here
+    local remoteEvents = Instance.new("Folder")
+    remoteEvents.Name = "RemoteEvents"
+    remoteEvents.Parent = ReplicatedStorage
+    
+    local remotes = Instance.new("Folder")
+    remotes.Name = "Remotes"
+    remotes.Parent = ReplicatedStorage
+    
+    print("ReplicatedStorage structure created")
+end
+
+-- Initialize all systems in proper order
+setupReplicatedStorage()
+
+-- Wait a moment for ReplicatedStorage to replicate
+wait(0.1)
+
+-- Initialize core systems
 DataManager:Init()
+RemoteHandler:Init()
 
 print("Server initialized")
