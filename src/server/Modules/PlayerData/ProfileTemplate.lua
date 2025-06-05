@@ -16,4 +16,5 @@ return {
         Yen = 0,
         Items = {},
     },
+    UnspentStatPoints = 0,
 }
