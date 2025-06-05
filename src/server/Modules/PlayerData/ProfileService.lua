@@ -4,6 +4,18 @@ local Players = game:GetService("Players")
 local dataStore = DataStoreService:GetDataStore("PlayerProfiles")
 local ProfileTemplate = require(script.Parent.ProfileTemplate)
 
+local function deepCopy(t)
+    local copy = {}
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            copy[k] = deepCopy(v)
+        else
+            copy[k] = v
+        end
+    end
+    return copy
+end
+
 local ProfileService = {}
 
 function ProfileService:LoadProfile(player)
@@ -13,10 +25,12 @@ function ProfileService:LoadProfile(player)
     end)
 
     if not success or not data then
-        data = ProfileTemplate
+        data = deepCopy(ProfileTemplate)
+    else
+        data = deepCopy(data)
     end
 
-    return table.clone(data)
+    return data
 end
 
 function ProfileService:SaveProfile(player, profile)
