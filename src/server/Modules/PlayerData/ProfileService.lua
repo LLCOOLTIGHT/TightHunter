@@ -1,5 +1,4 @@
 local DataStoreService = game:GetService("DataStoreService")
-local Players = game:GetService("Players")
 
 local dataStore = DataStoreService:GetDataStore("PlayerProfiles")
 local ProfileTemplate = require(script.Parent.ProfileTemplate)
