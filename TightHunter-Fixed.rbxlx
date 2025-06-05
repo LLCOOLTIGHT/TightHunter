@@ -1,0 +1,1062 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <Color3 name="Ambient">
+        <R>0</R>
+        <G>0</G>
+        <B>0</B>
+      </Color3>
+      <float name="Brightness">2</float>
+      <bool name="GlobalShadows">true</bool>
+      <bool name="Outlines">false</bool>
+      <token name="Technology">1</token>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">Hello</string>
+          <string name="Source"><![CDATA[return function()
+    print("Hello, world!")
+end
+
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">RemoteEvents</string>
+          <string name="Source"><![CDATA[-- RemoteEvents: Defines all remote events used for client-server communication
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RemoteEvents = {}
+
+-- Wait for RemoteEvents folder to be created by server
+local function waitForRemoteEvents()
+    return ReplicatedStorage:WaitForChild("RemoteEvents")
+end
+
+-- Player Data Events
+RemoteEvents.GetPlayerData = "GetPlayerData"
+RemoteEvents.AllocateStats = "AllocateStats"
+RemoteEvents.PlayerDataChanged = "PlayerDataChanged"
+
+-- Movement Events
+RemoteEvents.PlayerDashed = "PlayerDashed"
+RemoteEvents.PlayerWallRun = "PlayerWallRun"
+RemoteEvents.PlayerSprintChanged = "PlayerSprintChanged"
+
+-- Combat Events
+RemoteEvents.DealDamage = "DealDamage"
+RemoteEvents.UseAbility = "UseAbility"
+
+-- Shop/Trade Events
+RemoteEvents.PurchaseItem = "PurchaseItem"
+RemoteEvents.SellItem = "SellItem"
+
+-- Breathing Style Events
+RemoteEvents.LearnBreathingStyle = "LearnBreathingStyle"
+RemoteEvents.UpgradeBreathingStyle = "UpgradeBreathingStyle"
+
+-- Helper function to get or create remote events
+function RemoteEvents:GetRemoteEvent(eventName)
+    local remoteEventsFolder = waitForRemoteEvents()
+    local remoteEvent = remoteEventsFolder:FindFirstChild(eventName)
+    
+    if not remoteEvent then
+        remoteEvent = Instance.new("RemoteEvent")
+        remoteEvent.Name = eventName
+        remoteEvent.Parent = remoteEventsFolder
+    end
+    
+    return remoteEvent
+end
+
+-- Helper function to get or create remote functions
+function RemoteEvents:GetRemoteFunction(functionName)
+    local remoteEventsFolder = waitForRemoteEvents()
+    local remoteFunction = remoteEventsFolder:FindFirstChild(functionName)
+    
+    if not remoteFunction then
+        remoteFunction = Instance.new("RemoteFunction")
+        remoteFunction.Name = functionName
+        remoteFunction.Parent = remoteEventsFolder
+    end
+    
+    return remoteFunction
+end
+
+return RemoteEvents ]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="5">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Script" referent="6">
+      <Properties>
+        <string name="Name">Server</string>
+        <token name="RunContext">0</token>
+        <string name="Source"><![CDATA[-- Server initialization script
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataManager = require(script.Modules.PlayerData.DataManager)
+local RemoteHandler = require(script.RemoteHandler)
+local MovementHandler = require(script.MovementHandler)
+
+-- Initialize ReplicatedStorage structure first
+local function setupReplicatedStorage()
+    -- Setup shared modules and remote events here
+    local remoteEvents = Instance.new("Folder")
+    remoteEvents.Name = "RemoteEvents"
+    remoteEvents.Parent = ReplicatedStorage
+    
+    local remotes = Instance.new("Folder")
+    remotes.Name = "Remotes"
+    remotes.Parent = ReplicatedStorage
+    
+    print("ReplicatedStorage structure created")
+end
+
+-- Initialize all systems in proper order
+setupReplicatedStorage()
+
+-- Wait a moment for ReplicatedStorage to replicate
+wait(0.1)
+
+-- Initialize core systems
+DataManager:Init()
+RemoteHandler:Init()
+MovementHandler:Init()
+
+print("Server initialized with movement system")
+print("Enhanced movement features:")
+print("- Stat-based movement speed scaling")
+print("- Anti-cheat movement validation")
+print("- Multiplayer movement effect synchronization")
+]]></string>
+      </Properties>
+      <Item class="Folder" referent="7">
+        <Properties>
+          <string name="Name">Modules</string>
+        </Properties>
+        <Item class="Folder" referent="8">
+          <Properties>
+            <string name="Name">PlayerData</string>
+          </Properties>
+          <Item class="ModuleScript" referent="9">
+            <Properties>
+              <string name="Name">DataManager</string>
+              <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ProfileService = require(script.Parent.ProfileService)
+
+local DataManager = {}
+local playerProfiles = {}
+
+function DataManager:Get(player)
+    return playerProfiles[player]
+end
+
+local function loadProfile(player)
+    local profile = ProfileService:LoadProfile(player)
+    playerProfiles[player] = profile
+end
+
+local function saveProfile(player)
+    local profile = playerProfiles[player]
+    if profile then
+        ProfileService:SaveProfile(player, profile)
+        playerProfiles[player] = nil
+    end
+end
+
+function DataManager:Init()
+    Players.PlayerAdded:Connect(loadProfile)
+    Players.PlayerRemoving:Connect(saveProfile)
+
+    game:BindToClose(function()
+        for _, player in ipairs(Players:GetPlayers()) do
+            saveProfile(player)
+        end
+    end)
+end
+
+return DataManager
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="10">
+            <Properties>
+              <string name="Name">ProfileService</string>
+              <string name="Source"><![CDATA[-- ProfileService: Handles DataStore operations for player profiles
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+
+local dataStore = DataStoreService:GetDataStore("PlayerProfiles")
+local ProfileTemplate = require(script.Parent.ProfileTemplate)
+
+local function deepCopy(t)
+    local copy = {}
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            copy[k] = deepCopy(v)
+        else
+            copy[k] = v
+        end
+    end
+    return copy
+end
+
+local ProfileService = {}
+
+function ProfileService:LoadProfile(player)
+    local userId = tostring(player.UserId)
+    local success, data = pcall(function()
+        return dataStore:GetAsync(userId)
+    end)
+
+    if not success or not data then
+        data = deepCopy(ProfileTemplate)
+    else
+        data = deepCopy(data)
+    end
+
+    return data
+end
+
+function ProfileService:SaveProfile(player, profile)
+    local userId = tostring(player.UserId)
+    local success = pcall(function()
+        dataStore:SetAsync(userId, profile)
+    end)
+    
+    if not success then
+        warn("Failed to save profile for player: " .. player.Name)
+    end
+end
+
+return ProfileService
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="11">
+            <Properties>
+              <string name="Name">ProfileTemplate</string>
+              <string name="Source"><![CDATA[return {
+    Stats = {
+        Strength = 0,
+        Agility = 0,
+        Intelligence = 0,
+        Constitution = 0,
+        BreathingMastery = 0,
+        Level = 1,
+        EXP = 0,
+    },
+    Race = "Human",
+    Clan = "Kamado",
+    BreathingStyle = "None",
+    Abilities = {},
+    Inventory = {
+        Yen = 0,
+        Items = {},
+    },
+    UnspentStatPoints = 0,
+}
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="12">
+            <Properties>
+              <string name="Name">StatService</string>
+              <string name="Source"><![CDATA[local DataManager = require(script.Parent.DataManager)
+
+local StatService = {}
+
+-- Valid stat keys to prevent exploits
+local validStats = {
+    Strength = true,
+    Agility = true,
+    Intelligence = true,
+    Constitution = true,
+    BreathingMastery = true,
+}
+
+function StatService:Allocate(player, stat, amount)
+    local profile = DataManager:Get(player)
+    if not profile then
+        return false
+    end
+
+    if not validStats[stat] then
+        return false
+    end
+
+    if amount > profile.UnspentStatPoints then
+        return false
+    end
+
+    profile.Stats[stat] += amount
+    profile.UnspentStatPoints -= amount
+    print(player.Name .. " upgraded " .. stat .. " by " .. amount)
+    return true
+end
+
+return StatService
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="13">
+            <Properties>
+              <string name="Name">XPService</string>
+              <string name="Source"><![CDATA[local DataManager = require(script.Parent.DataManager)
+
+local XPService = {}
+
+local BASE_XP = 100
+
+function XPService:GetLevelXPRequirement(level)
+    return level * BASE_XP
+end
+
+function XPService:AddXP(player, amount)
+    local profile = DataManager:Get(player)
+    if not profile then
+        return
+    end
+
+    local stats = profile.Stats
+    stats.EXP += amount
+
+    local required = XPService:GetLevelXPRequirement(stats.Level)
+    while stats.EXP >= required do
+        stats.EXP -= required
+        stats.Level += 1
+        profile.UnspentStatPoints += 5
+        print(player.Name .. " reached level " .. stats.Level)
+        required = XPService:GetLevelXPRequirement(stats.Level)
+    end
+end
+
+return XPService
+]]></string>
+            </Properties>
+          </Item>
+        </Item>
+      </Item>
+      <Item class="ModuleScript" referent="14">
+        <Properties>
+          <string name="Name">MovementHandler</string>
+          <string name="Source"><![CDATA[-- MovementHandler: Server-side movement effect management
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+local DataManager = require(script.Parent.Modules.PlayerData.DataManager)
+
+local MovementHandler = {}
+
+-- Movement effect tracking
+local playerMovementStates = {}
+
+-- Initialize player movement state
+local function initPlayerMovementState(player)
+    playerMovementStates[player] = {
+        isSprinting = false,
+        isWallRunning = false,
+        lastDashTime = 0,
+    }
+end
+
+-- Clean up player movement state
+local function cleanupPlayerMovementState(player)
+    playerMovementStates[player] = nil
+end
+
+-- Handle player dash events
+local function onPlayerDashed(player, direction, dashPosition)
+    -- Validate dash (basic anti-cheat)
+    local currentTime = tick()
+    local playerState = playerMovementStates[player]
+    
+    if not playerState then return end
+    
+    -- Check cooldown (2 second cooldown)
+    if currentTime - playerState.lastDashTime < 1.8 then -- Slightly less than client for lag tolerance
+        warn("Player " .. player.Name .. " attempted to dash too quickly")
+        return
+    end
+    
+    playerState.lastDashTime = currentTime
+    
+    -- Broadcast dash effect to all other players
+    local dashRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDashed)
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player then
+            dashRemote:FireClient(otherPlayer, player, direction, dashPosition)
+        end
+    end
+    
+    print(player.Name .. " dashed")
+end
+
+-- Handle wall running events
+local function onPlayerWallRun(player, isWallRunning, wallPosition)
+    local playerState = playerMovementStates[player]
+    if not playerState then return end
+    
+    playerState.isWallRunning = isWallRunning
+    
+    -- Broadcast wall running to all other players
+    local wallRunRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerWallRun)
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player then
+            wallRunRemote:FireClient(otherPlayer, player, isWallRunning, wallPosition)
+        end
+    end
+    
+    if isWallRunning then
+        print(player.Name .. " started wall running")
+    else
+        print(player.Name .. " stopped wall running")
+    end
+end
+
+-- Handle sprint state changes
+local function onPlayerSprintChanged(player, isSprinting)
+    local playerState = playerMovementStates[player]
+    if not playerState then return end
+    
+    playerState.isSprinting = isSprinting
+    
+    -- Broadcast sprint state to all other players
+    local sprintRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerSprintChanged)
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player then
+            sprintRemote:FireClient(otherPlayer, player, isSprinting)
+        end
+    end
+end
+
+-- Calculate movement speed based on stats (for validation)
+local function calculatePlayerSpeed(player)
+    local profile = DataManager:Get(player)
+    if not profile or not profile.Stats then
+        return 16 -- Default speed
+    end
+    
+    local baseSpeed = 16
+    local agilityBonus = profile.Stats.Agility * 0.02
+    return baseSpeed * (1 + agilityBonus)
+end
+
+-- Validate player movement speed (anti-cheat)
+local function validatePlayerSpeed(player)
+    if not player.Character or not player.Character:FindFirstChild("Humanoid") then
+        return
+    end
+    
+    local humanoid = player.Character.Humanoid
+    local expectedSpeed = calculatePlayerSpeed(player)
+    local currentSpeed = humanoid.WalkSpeed
+    
+    -- Allow some tolerance for sprint multiplier and wall running
+    local maxAllowedSpeed = expectedSpeed * 2 -- Sprint multiplier + some buffer
+    
+    if currentSpeed > maxAllowedSpeed + 5 then -- 5 unit tolerance
+        warn("Player " .. player.Name .. " has suspicious movement speed: " .. currentSpeed .. " (expected max: " .. maxAllowedSpeed .. ")")
+        -- Could reset speed or kick player here
+        humanoid.WalkSpeed = expectedSpeed
+    end
+end
+
+-- Public functions
+function MovementHandler:GetPlayerMovementState(player)
+    return playerMovementStates[player]
+end
+
+function MovementHandler:IsPlayerSprinting(player)
+    local state = playerMovementStates[player]
+    return state and state.isSprinting or false
+end
+
+function MovementHandler:IsPlayerWallRunning(player)
+    local state = playerMovementStates[player]
+    return state and state.isWallRunning or false
+end
+
+-- Initialize
+function MovementHandler:Init()
+    -- Setup remote event handlers
+    local dashRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDashed)
+    local wallRunRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerWallRun)
+    local sprintRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerSprintChanged)
+    
+    dashRemote.OnServerEvent:Connect(onPlayerDashed)
+    wallRunRemote.OnServerEvent:Connect(onPlayerWallRun)
+    sprintRemote.OnServerEvent:Connect(onPlayerSprintChanged)
+    
+    -- Handle player connections
+    Players.PlayerAdded:Connect(initPlayerMovementState)
+    Players.PlayerRemoving:Connect(cleanupPlayerMovementState)
+    
+    -- Initialize existing players
+    for _, player in ipairs(Players:GetPlayers()) do
+        initPlayerMovementState(player)
+    end
+    
+    -- Anti-cheat: Monitor movement speeds
+    game:GetService("RunService").Heartbeat:Connect(function()
+        for _, player in ipairs(Players:GetPlayers()) do
+            validatePlayerSpeed(player)
+        end
+    end)
+    
+    print("MovementHandler initialized")
+end
+
+return MovementHandler ]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="15">
+        <Properties>
+          <string name="Name">RemoteHandler</string>
+          <string name="Source"><![CDATA[-- RemoteHandler: Handles client requests on the server
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataManager = require(script.Parent.Modules.PlayerData.DataManager)
+local StatService = require(script.Parent.Modules.PlayerData.StatService)
+
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+
+local RemoteHandler = {}
+
+-- Initialize remote event handlers
+function RemoteHandler:Init()
+    -- Handle GetPlayerData requests
+    local getPlayerDataRemote = RemoteEvents:GetRemoteFunction(RemoteEvents.GetPlayerData)
+    getPlayerDataRemote.OnServerInvoke = function(player)
+        local profile = DataManager:Get(player)
+        return profile
+    end
+    
+    -- Handle AllocateStats requests
+    local allocateStatsRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.AllocateStats)
+    allocateStatsRemote.OnServerEvent:Connect(function(player, stat, amount)
+        local success = StatService:Allocate(player, stat, amount)
+        if success then
+            -- Send updated data to client
+            local playerDataChangedRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDataChanged)
+            local updatedProfile = DataManager:Get(player)
+            playerDataChangedRemote:FireClient(player, updatedProfile)
+        end
+    end)
+    
+    print("RemoteHandler initialized")
+end
+
+return RemoteHandler ]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="SoundService" referent="16">
+    <Properties>
+      <string name="Name">SoundService</string>
+      <bool name="RespectFilteringEnabled">true</bool>
+    </Properties>
+  </Item>
+  <Item class="StarterPlayer" referent="17">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="18">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="LocalScript" referent="19">
+        <Properties>
+          <string name="Name">Client</string>
+          <string name="Source"><![CDATA[-- Client initialization script
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Wait for shared modules
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+
+-- Initialize client-side systems
+local player = Players.LocalPlayer
+local DataHandler = require(script.DataHandler)
+local MovementController = require(script.MovementController)
+
+-- Initialize data handler first
+DataHandler:Init()
+
+-- Initialize movement controller
+MovementController:Init()
+
+-- Setup data change listener
+DataHandler.OnDataChanged.Event:Connect(function(newData)
+    print("Player data updated:", newData.Stats.Level, "Level", newData.Stats.EXP, "EXP")
+    print("Agility:", newData.Stats.Agility, "Constitution:", newData.Stats.Constitution)
+end)
+
+-- Setup movement event listeners
+MovementController.OnDash.Event:Connect(function(direction)
+    print("Player dashed in direction:", direction)
+    -- Here you could add visual/audio effects for dashing
+end)
+
+MovementController.OnWallRun.Event:Connect(function(isWallRunning, wall)
+    if isWallRunning then
+        print("Started wall running on:", wall.Name)
+        -- Here you could add wall running visual effects
+    else
+        print("Stopped wall running")
+    end
+end)
+
+MovementController.OnStaminaChanged.Event:Connect(function(currentStamina, maxStamina)
+    -- This could update a stamina UI bar
+    local staminaPercent = math.floor((currentStamina / maxStamina) * 100)
+    if staminaPercent <= 20 then
+        -- Low stamina warning could go here
+    end
+end)
+
+print("Client initialized with enhanced movement system")
+print("Controls:")
+print("- WASD: Move")
+print("- Left Shift: Sprint (consumes stamina)")
+print("- Q: Dash (2 second cooldown)")
+print("- Space: Jump (enhanced wall jump when wall running)")
+print("Hello world, from client!")
+
+]]></string>
+        </Properties>
+        <Item class="ModuleScript" referent="20">
+          <Properties>
+            <string name="Name">DataHandler</string>
+            <string name="Source"><![CDATA[-- DataHandler: Client-side data management
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+
+local DataHandler = {}
+local playerData = nil
+
+local player = Players.LocalPlayer
+
+-- Get remote events
+local getPlayerDataRemote = nil
+local allocateStatsRemote = nil
+local playerDataChangedRemote = nil
+
+-- Initialize remotes when available
+local function initializeRemotes()
+    getPlayerDataRemote = RemoteEvents:GetRemoteFunction(RemoteEvents.GetPlayerData)
+    allocateStatsRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.AllocateStats)
+    playerDataChangedRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDataChanged)
+    
+    -- Listen for data changes from server
+    playerDataChangedRemote.OnClientEvent:Connect(function(newData)
+        playerData = newData
+        DataHandler.OnDataChanged:Fire(newData)
+    end)
+end
+
+-- Events
+DataHandler.OnDataChanged = Instance.new("BindableEvent")
+
+-- Get current player data
+function DataHandler:GetData()
+    return playerData
+end
+
+-- Request player data from server
+function DataHandler:RequestData()
+    if getPlayerDataRemote then
+        playerData = getPlayerDataRemote:InvokeServer()
+        return playerData
+    end
+    return nil
+end
+
+-- Request stat allocation
+function DataHandler:AllocateStats(stat, amount)
+    if allocateStatsRemote then
+        allocateStatsRemote:FireServer(stat, amount)
+    end
+end
+
+-- Initialize the data handler
+function DataHandler:Init()
+    initializeRemotes()
+    self:RequestData()
+    print("Client DataHandler initialized")
+end
+
+return DataHandler ]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="21">
+          <Properties>
+            <string name="Name">MovementController</string>
+            <string name="Source"><![CDATA[-- MovementController: Enhanced movement system for TightHunter
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local DataHandler = require(script.Parent.DataHandler)
+
+local MovementController = {}
+
+-- Configuration
+local Config = {
+    -- Base movement speeds
+    BaseWalkSpeed = 16,
+    BaseJumpPower = 50,
+    
+    -- Dash system
+    DashCooldown = 2, -- seconds
+    DashDistance = 50,
+    DashSpeed = 100,
+    DashDuration = 0.3,
+    
+    -- Sprint system
+    SprintMultiplier = 1.5,
+    SprintStaminaCost = 5, -- per second
+    MaxStamina = 100,
+    StaminaRegen = 10, -- per second
+    
+    -- Wall running
+    WallRunSpeed = 20,
+    WallRunDuration = 3,
+    WallRunJumpPower = 60,
+    
+    -- Stat scaling
+    AgilitySpeedMultiplier = 0.02, -- 2% speed per agility point
+    ConstitutionStaminaMultiplier = 2, -- 2 stamina per constitution point
+}
+
+-- Local variables
+local player = Players.LocalPlayer
+local character = nil
+local humanoid = nil
+local rootPart = nil
+
+-- Movement state
+local movementState = {
+    isDashing = false,
+    isSprinting = false,
+    isWallRunning = false,
+    stamina = Config.MaxStamina,
+    lastDashTime = 0,
+    wallRunStartTime = 0,
+    currentWall = nil,
+}
+
+-- Input tracking
+local keysPressed = {
+    W = false,
+    A = false,
+    S = false,
+    D = false,
+    LeftShift = false,
+    Space = false,
+}
+
+-- Events
+MovementController.OnDash = Instance.new("BindableEvent")
+MovementController.OnWallRun = Instance.new("BindableEvent")
+MovementController.OnStaminaChanged = Instance.new("BindableEvent")
+
+-- Get current player stats
+local function getPlayerStats()
+    local data = DataHandler:GetData()
+    if data and data.Stats then
+        return data.Stats
+    end
+    return {Agility = 0, Constitution = 0}
+end
+
+-- Calculate speed based on stats
+local function calculateSpeed()
+    local stats = getPlayerStats()
+    local agilityBonus = stats.Agility * Config.AgilitySpeedMultiplier
+    return Config.BaseWalkSpeed * (1 + agilityBonus)
+end
+
+-- Calculate max stamina based on stats
+local function calculateMaxStamina()
+    local stats = getPlayerStats()
+    return Config.MaxStamina + (stats.Constitution * Config.ConstitutionStaminaMultiplier)
+end
+
+-- Update movement speed
+local function updateMovementSpeed()
+    if not humanoid then return end
+    
+    local baseSpeed = calculateSpeed()
+    local currentSpeed = baseSpeed
+    
+    -- Apply sprint multiplier
+    if movementState.isSprinting and movementState.stamina > 0 then
+        currentSpeed = baseSpeed * Config.SprintMultiplier
+    end
+    
+    -- Apply wall running speed
+    if movementState.isWallRunning then
+        currentSpeed = Config.WallRunSpeed
+    end
+    
+    humanoid.WalkSpeed = currentSpeed
+end
+
+-- Dash function
+local function performDash()
+    if movementState.isDashing then return end
+    
+    local currentTime = tick()
+    if currentTime - movementState.lastDashTime < Config.DashCooldown then return end
+    
+    if not rootPart or not humanoid then return end
+    
+    movementState.isDashing = true
+    movementState.lastDashTime = currentTime
+    
+    -- Calculate dash direction
+    local moveVector = humanoid.MoveDirection
+    if moveVector.Magnitude == 0 then
+        moveVector = rootPart.CFrame.LookVector
+    end
+    
+    -- Create dash effect
+    local dashDirection = moveVector * Config.DashDistance
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 0, 4000)
+    bodyVelocity.Velocity = dashDirection.Unit * Config.DashSpeed
+    bodyVelocity.Parent = rootPart
+    
+    -- Fire dash event
+    MovementController.OnDash:Fire(dashDirection)
+    
+    -- End dash after duration
+    game:GetService("Debris"):AddItem(bodyVelocity, Config.DashDuration)
+    
+    wait(Config.DashDuration)
+    movementState.isDashing = false
+end
+
+-- Wall running detection
+local function detectWallRunning()
+    if not rootPart or movementState.isDashing then return end
+    
+    local raycast = workspace:Raycast(rootPart.Position, rootPart.CFrame.RightVector * 5)
+    if not raycast then
+        raycast = workspace:Raycast(rootPart.Position, -rootPart.CFrame.RightVector * 5)
+    end
+    
+    if raycast and raycast.Instance and raycast.Instance.CanCollide then
+        local wall = raycast.Instance
+        if wall ~= movementState.currentWall then
+            movementState.currentWall = wall
+            movementState.wallRunStartTime = tick()
+            movementState.isWallRunning = true
+            
+            -- Prevent falling while wall running
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(0, 4000, 0)
+            bodyVelocity.Velocity = Vector3.new(0, 5, 0)
+            bodyVelocity.Parent = rootPart
+            
+            MovementController.OnWallRun:Fire(true, wall)
+            
+            -- End wall run after duration
+            game:GetService("Debris"):AddItem(bodyVelocity, Config.WallRunDuration)
+        end
+    else
+        if movementState.isWallRunning then
+            movementState.isWallRunning = false
+            movementState.currentWall = nil
+            MovementController.OnWallRun:Fire(false, nil)
+        end
+    end
+end
+
+-- Stamina management
+local function updateStamina(deltaTime)
+    local maxStamina = calculateMaxStamina()
+    
+    -- Consume stamina when sprinting
+    if movementState.isSprinting and keysPressed.W and movementState.stamina > 0 then
+        movementState.stamina = math.max(0, movementState.stamina - Config.SprintStaminaCost * deltaTime)
+    else
+        -- Regenerate stamina
+        movementState.stamina = math.min(maxStamina, movementState.stamina + Config.StaminaRegen * deltaTime)
+    end
+    
+    -- Stop sprinting if out of stamina
+    if movementState.stamina <= 0 then
+        movementState.isSprinting = false
+    end
+    
+    MovementController.OnStaminaChanged:Fire(movementState.stamina, maxStamina)
+end
+
+-- Input handling
+local function onKeyDown(key)
+    local keyCode = key.KeyCode.Name
+    
+    if keyCode == "W" or keyCode == "A" or keyCode == "S" or keyCode == "D" then
+        keysPressed[keyCode] = true
+    elseif keyCode == "LeftShift" then
+        keysPressed.LeftShift = true
+        movementState.isSprinting = true
+    elseif keyCode == "Space" then
+        keysPressed.Space = true
+        
+        -- Wall run jump
+        if movementState.isWallRunning then
+            local jumpDirection = rootPart.CFrame.LookVector + Vector3.new(0, 1, 0)
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+            bodyVelocity.Velocity = jumpDirection.Unit * Config.WallRunJumpPower
+            bodyVelocity.Parent = rootPart
+            game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+            
+            movementState.isWallRunning = false
+            movementState.currentWall = nil
+        end
+    elseif keyCode == "Q" then
+        -- Dash ability
+        spawn(performDash)
+    end
+    
+    updateMovementSpeed()
+end
+
+local function onKeyUp(key)
+    local keyCode = key.KeyCode.Name
+    
+    if keyCode == "W" or keyCode == "A" or keyCode == "S" or keyCode == "D" then
+        keysPressed[keyCode] = false
+    elseif keyCode == "LeftShift" then
+        keysPressed.LeftShift = false
+        movementState.isSprinting = false
+    elseif keyCode == "Space" then
+        keysPressed.Space = false
+    end
+    
+    updateMovementSpeed()
+end
+
+-- Character setup
+local function onCharacterAdded(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Reset movement state
+    movementState.stamina = calculateMaxStamina()
+    movementState.isDashing = false
+    movementState.isSprinting = false
+    movementState.isWallRunning = false
+    
+    -- Set initial movement speed
+    updateMovementSpeed()
+end
+
+-- Main update loop
+local function onHeartbeat(deltaTime)
+    if not character or not humanoid or not rootPart then return end
+    
+    updateStamina(deltaTime)
+    detectWallRunning()
+    updateMovementSpeed()
+end
+
+-- Public functions
+function MovementController:GetStamina()
+    return movementState.stamina, calculateMaxStamina()
+end
+
+function MovementController:IsMoving()
+    return humanoid and humanoid.MoveDirection.Magnitude > 0
+end
+
+function MovementController:IsSprinting()
+    return movementState.isSprinting
+end
+
+function MovementController:IsDashing()
+    return movementState.isDashing
+end
+
+function MovementController:IsWallRunning()
+    return movementState.isWallRunning
+end
+
+-- Initialize
+function MovementController:Init()
+    -- Connect events
+    UserInputService.InputBegan:Connect(onKeyDown)
+    UserInputService.InputEnded:Connect(onKeyUp)
+    RunService.Heartbeat:Connect(onHeartbeat)
+    
+    -- Setup character
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+    player.CharacterAdded:Connect(onCharacterAdded)
+    
+    -- Listen for stat changes
+    DataHandler.OnDataChanged.Event:Connect(function()
+        updateMovementSpeed()
+    end)
+    
+    print("MovementController initialized")
+end
+
+return MovementController ]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="Workspace" referent="22">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="FilteringEnabled">true</bool>
+      <bool name="NeedsPivotMigration">false</bool>
+    </Properties>
+    <Item class="Part" referent="23">
+      <Properties>
+        <string name="Name">Baseplate</string>
+        <bool name="Anchored">true</bool>
+        <Color3uint8 name="Color3uint8">6512483</Color3uint8>
+        <bool name="Locked">true</bool>
+        <Vector3 name="Position">
+          <X>0</X>
+          <Y>-10</Y>
+          <Z>0</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>512</X>
+          <Y>20</Y>
+          <Z>512</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>

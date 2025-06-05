@@ -1,7 +1,8 @@
 -- Server initialization script
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataManager = require(script.Parent.Modules.PlayerData.DataManager)
-local RemoteHandler = require(script.Parent.RemoteHandler)
+local DataManager = require(script.Modules.PlayerData.DataManager)
+local RemoteHandler = require(script.RemoteHandler)
+local MovementHandler = require(script.MovementHandler)
 
 -- Initialize ReplicatedStorage structure first
 local function setupReplicatedStorage()
@@ -26,5 +27,10 @@ wait(0.1)
 -- Initialize core systems
 DataManager:Init()
 RemoteHandler:Init()
+MovementHandler:Init()
 
-print("Server initialized")
+print("Server initialized with movement system")
+print("Enhanced movement features:")
+print("- Stat-based movement speed scaling")
+print("- Anti-cheat movement validation")
+print("- Multiplayer movement effect synchronization")

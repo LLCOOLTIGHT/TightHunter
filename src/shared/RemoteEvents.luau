@@ -13,6 +13,11 @@ RemoteEvents.GetPlayerData = "GetPlayerData"
 RemoteEvents.AllocateStats = "AllocateStats"
 RemoteEvents.PlayerDataChanged = "PlayerDataChanged"
 
+-- Movement Events
+RemoteEvents.PlayerDashed = "PlayerDashed"
+RemoteEvents.PlayerWallRun = "PlayerWallRun"
+RemoteEvents.PlayerSprintChanged = "PlayerSprintChanged"
+
 -- Combat Events
 RemoteEvents.DealDamage = "DealDamage"
 RemoteEvents.UseAbility = "UseAbility"
