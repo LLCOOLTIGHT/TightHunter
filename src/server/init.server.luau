@@ -18,7 +18,16 @@ local function setupReplicatedStorage()
     local remotes = Instance.new("Folder")
     remotes.Name = "Remotes"
     remotes.Parent = ReplicatedStorage
-    
+
+    -- Bindable functions for local scripts
+    local bindables = Instance.new("Folder")
+    bindables.Name = "BindableFunctions"
+    bindables.Parent = ReplicatedStorage
+
+    local dashBindable = Instance.new("BindableFunction")
+    dashBindable.Name = "DashBindable"
+    dashBindable.Parent = bindables
+
     print("ReplicatedStorage structure created")
 end
 
