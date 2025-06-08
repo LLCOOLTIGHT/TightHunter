@@ -2,8 +2,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-print("DEBUG DataHandler: Loading RemoteEvents module...")
-
 local RemoteEvents = nil
 local success, err = pcall(function()
     RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
@@ -13,8 +11,6 @@ if not success then
     warn("DataHandler: Failed to load RemoteEvents:", err)
     return {}
 end
-
-print("DEBUG DataHandler: RemoteEvents module loaded successfully")
 
 local DataHandler = {}
 local playerData = nil
@@ -28,8 +24,6 @@ local playerDataChangedRemote = nil
 
 -- Initialize remotes when available
 local function initializeRemotes()
-    print("DEBUG DataHandler: Initializing remotes...")
-    
     local success1, err1 = pcall(function()
         getPlayerDataRemote = RemoteEvents:GetRemoteFunction(RemoteEvents.GetPlayerData)
     end)
@@ -57,8 +51,6 @@ local function initializeRemotes()
         return false
     end
     
-    print("DEBUG DataHandler: All remotes obtained successfully")
-    
     -- Listen for data changes from server
     local success4, err4 = pcall(function()
         playerDataChangedRemote.OnClientEvent:Connect(function(newData)
@@ -72,7 +64,6 @@ local function initializeRemotes()
         return false
     end
     
-    print("DEBUG DataHandler: Event connections established")
     return true
 end
 
@@ -86,8 +77,6 @@ end
 
 -- Request player data from server with timeout and retry
 function DataHandler:RequestData()
-    print("DEBUG DataHandler: Requesting player data...")
-    
     if not getPlayerDataRemote then
         warn("DataHandler: GetPlayerData remote not available")
         return nil
@@ -95,7 +84,6 @@ function DataHandler:RequestData()
     
     -- Try multiple times with increasing delays
     for attempt = 1, 3 do
-        print("DEBUG DataHandler: Request attempt", attempt)
         
         local success, result = pcall(function()
             -- Set a timeout for the invoke call
@@ -133,13 +121,11 @@ function DataHandler:RequestData()
         
         if success and result and not result.error then
             playerData = result
-            print("DEBUG DataHandler: Player data received successfully on attempt", attempt)
             return playerData
         else
             warn("DataHandler: Failed to request player data on attempt", attempt, ":", result and result.error or "Unknown error")
             
             if attempt < 3 then
-                print("DEBUG DataHandler: Waiting before retry...")
                 wait(attempt) -- Wait 1s, then 2s before retrying
             end
         end
@@ -179,8 +165,6 @@ end
 
 -- Initialize the data handler
 function DataHandler:Init()
-    print("DEBUG DataHandler: Starting initialization...")
-    
     local success, err = pcall(function()
         local remoteSuccess = initializeRemotes()
         if not remoteSuccess then
@@ -193,9 +177,7 @@ function DataHandler:Init()
         end)
     end)
     
-    if success then
-        print("DEBUG DataHandler: Initialization completed successfully")
-    else
+    if not success then
         warn("DataHandler: Initialization failed:", err)
         error("DataHandler initialization failed: " .. tostring(err))
     end

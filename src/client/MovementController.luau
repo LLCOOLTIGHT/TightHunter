@@ -15,11 +15,7 @@ local Config = {
     BaseWalkSpeed = 16,
     BaseJumpPower = 50,
     
-    -- Dash system (ENHANCED)
-    DashCooldown = 2, -- seconds
-    DashDistance = 80, -- Increased from 50
-    DashSpeed = 200, -- Increased from 100
-    DashDuration = 0.4, -- Increased from 0.3
+    -- Dash system removed - now handled by StarterCharacterScripts double-tap system
     
     -- Sprint system
     SprintMultiplier = 1.5,
@@ -43,13 +39,11 @@ local character = nil
 local humanoid = nil
 local rootPart = nil
 
--- Movement state
+-- Movement state (dash-related variables removed)
 local movementState = {
-    isDashing = false,
     isSprinting = false,
     isWallRunning = false,
     stamina = Config.MaxStamina,
-    lastDashTime = 0,
     wallRunStartTime = 0,
     currentWall = nil,
 }
@@ -64,8 +58,7 @@ local keysPressed = {
     Space = false,
 }
 
--- Events
-MovementController.OnDash = Instance.new("BindableEvent")
+-- Events (OnDash removed - handled by StarterCharacterScripts system)
 MovementController.OnWallRun = Instance.new("BindableEvent")
 MovementController.OnStaminaChanged = Instance.new("BindableEvent")
 
@@ -93,10 +86,7 @@ end
 
 -- Update movement speed
 local function updateMovementSpeed()
-    if not humanoid then 
-        print("DEBUG: Cannot update speed - no humanoid")
-        return 
-    end
+    if not humanoid then return end
     
     local baseSpeed = calculateSpeed()
     local currentSpeed = baseSpeed
@@ -104,7 +94,6 @@ local function updateMovementSpeed()
     -- Apply sprint multiplier
     if movementState.isSprinting and movementState.stamina > 0 then
         currentSpeed = baseSpeed * Config.SprintMultiplier
-        print("Sprinting at speed:", currentSpeed)
     end
     
     -- Apply wall running speed
@@ -113,97 +102,13 @@ local function updateMovementSpeed()
     end
     
     humanoid.WalkSpeed = currentSpeed
-    print("DEBUG: Set walk speed to:", currentSpeed)
 end
 
--- Enhanced dash function with better visuals
-local function performDash()
-    print("DEBUG: performDash() called")
-    
-    if movementState.isDashing then 
-        print("Dash blocked: Already dashing")
-        return 
-    end
-    
-    local currentTime = tick()
-    if currentTime - movementState.lastDashTime < Config.DashCooldown then 
-        local timeLeft = Config.DashCooldown - (currentTime - movementState.lastDashTime)
-        print("Dash blocked: Cooldown remaining:", math.ceil(timeLeft), "seconds")
-        return 
-    end
-    
-    if not rootPart or not humanoid then 
-        print("Dash blocked: No character - rootPart:", rootPart, "humanoid:", humanoid)
-        return 
-    end
-    
-    print("=== DASH STARTING ===")
-    movementState.isDashing = true
-    movementState.lastDashTime = currentTime
-    
-    -- Store original position for debugging
-    local startPos = rootPart.Position
-    
-    -- Calculate dash direction
-    local moveVector = humanoid.MoveDirection
-    if moveVector.Magnitude == 0 then
-        moveVector = rootPart.CFrame.LookVector
-    end
-    
-    print("Dash direction vector:", moveVector)
-    print("Player position before dash:", startPos)
-    
-    -- Create MUCH stronger dash effect
-    local dashDirection = moveVector.Unit * Config.DashSpeed
-    
-    -- Remove any existing BodyVelocity objects first
-    for _, obj in pairs(rootPart:GetChildren()) do
-        if obj:IsA("BodyVelocity") or obj:IsA("BodyPosition") then
-            obj:Destroy()
-        end
-    end
-    
-    -- Create powerful dash velocity
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(10000, 0, 10000) -- Much stronger force
-    bodyVelocity.Velocity = dashDirection
-    bodyVelocity.Parent = rootPart
-    
-    -- Add upward force to make dash more noticeable
-    local upwardForce = Instance.new("BodyVelocity")
-    upwardForce.MaxForce = Vector3.new(0, 5000, 0)
-    upwardForce.Velocity = Vector3.new(0, 20, 0) -- Small upward boost
-    upwardForce.Parent = rootPart
-    
-    print("Created BodyVelocity with velocity:", dashDirection)
-    print("Dash force applied for", Config.DashDuration, "seconds")
-    
-    -- Fire dash event
-    MovementController.OnDash:Fire(dashDirection)
-    
-    -- Clean up after dash duration
-    spawn(function()
-        wait(Config.DashDuration)
-        if bodyVelocity and bodyVelocity.Parent then
-            bodyVelocity:Destroy()
-        end
-        if upwardForce and upwardForce.Parent then
-            upwardForce:Destroy()
-        end
-        
-        local endPos = rootPart.Position
-        local distance = (endPos - startPos).Magnitude
-        print("=== DASH COMPLETED ===")
-        print("Distance traveled:", math.floor(distance), "studs")
-        print("Player position after dash:", endPos)
-        
-        movementState.isDashing = false
-    end)
-end
+-- Old dash function removed - now using enhanced double-tap dash system in StarterCharacterScripts
 
 -- Wall running detection
 local function detectWallRunning()
-    if not rootPart or movementState.isDashing then return end
+    if not rootPart then return end
     
     local raycast = workspace:Raycast(rootPart.Position, rootPart.CFrame.RightVector * 5)
     if not raycast then
@@ -252,31 +157,25 @@ local function updateStamina(deltaTime)
     -- Stop sprinting if out of stamina
     if movementState.stamina <= 0 then
         movementState.isSprinting = false
-        print("Out of stamina! Sprint disabled.")
     end
     
     MovementController.OnStaminaChanged:Fire(movementState.stamina, maxStamina)
 end
 
--- Input handling with extensive debugging
+-- Input handling
 local function onKeyDown(key)
-    print("DEBUG: Key pressed:", key.KeyCode.Name)
     local keyCode = key.KeyCode.Name
     
     if keyCode == "W" or keyCode == "A" or keyCode == "S" or keyCode == "D" then
         keysPressed[keyCode] = true
-        print("DEBUG: Movement key", keyCode, "pressed")
     elseif keyCode == "LeftShift" then
         keysPressed.LeftShift = true
         movementState.isSprinting = true
-        print("Sprint activated!")
     elseif keyCode == "Space" then
         keysPressed.Space = true
-        print("DEBUG: Space pressed")
         
         -- Wall run jump
         if movementState.isWallRunning then
-            print("Wall jump activated!")
             local jumpDirection = rootPart.CFrame.LookVector + Vector3.new(0, 1, 0)
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
@@ -287,26 +186,19 @@ local function onKeyDown(key)
             movementState.isWallRunning = false
             movementState.currentWall = nil
         end
-    elseif keyCode == "Q" then
-        -- Dash ability
-        print("Q pressed - attempting dash...")
-        performDash()
     end
     
     updateMovementSpeed()
 end
 
 local function onKeyUp(key)
-    print("DEBUG: Key released:", key.KeyCode.Name)
     local keyCode = key.KeyCode.Name
     
     if keyCode == "W" or keyCode == "A" or keyCode == "S" or keyCode == "D" then
         keysPressed[keyCode] = false
-        print("DEBUG: Movement key", keyCode, "released")
     elseif keyCode == "LeftShift" then
         keysPressed.LeftShift = false
         movementState.isSprinting = false
-        print("Sprint deactivated!")
     elseif keyCode == "Space" then
         keysPressed.Space = false
     end
@@ -316,7 +208,6 @@ end
 
 -- Character setup
 local function onCharacterAdded(newCharacter)
-    print("DEBUG: Character added:", newCharacter)
     character = newCharacter
     
     -- Wait for essential parts
@@ -330,21 +221,13 @@ local function onCharacterAdded(newCharacter)
         return
     end
     
-    print("Character setup complete!")
-    print("Humanoid:", humanoid)
-    print("RootPart:", rootPart)
-    print("Current WalkSpeed:", humanoid.WalkSpeed)
-    
     -- Reset movement state
     movementState.stamina = calculateMaxStamina()
-    movementState.isDashing = false
     movementState.isSprinting = false
     movementState.isWallRunning = false
     
     -- Set initial movement speed
     updateMovementSpeed()
-    
-    print("DEBUG: Character setup completed successfully")
 end
 
 -- Main update loop
@@ -369,41 +252,21 @@ function MovementController:IsSprinting()
     return movementState.isSprinting
 end
 
-function MovementController:IsDashing()
-    return movementState.isDashing
-end
+-- IsDashing function removed - dash system now handled by StarterCharacterScripts
 
 function MovementController:IsWallRunning()
     return movementState.isWallRunning
 end
 
--- Debug function to test input
-function MovementController:TestInput()
-    print("=== INPUT TEST ===")
-    print("Character:", character)
-    print("Humanoid:", humanoid) 
-    print("RootPart:", rootPart)
-    print("UserInputService available:", UserInputService ~= nil)
-    
-    if humanoid then
-        print("Current WalkSpeed:", humanoid.WalkSpeed)
-        print("MoveDirection:", humanoid.MoveDirection)
-    end
-    
-    print("Movement state:", movementState)
-    print("Keys pressed:", keysPressed)
-end
+-- Debug function removed to reduce console spam
 
 -- Initialize
 function MovementController:Init()
-    print("DEBUG: Initializing MovementController...")
-    
     -- Test UserInputService availability
     if not UserInputService then
         warn("UserInputService not available!")
         return
     end
-    print("DEBUG: UserInputService available")
     
     -- Connect input events with error handling
     local success1, err1 = pcall(function()
@@ -417,33 +280,20 @@ function MovementController:Init()
     if not success1 then warn("Failed to connect InputBegan:", err1) end
     if not success2 then warn("Failed to connect InputEnded:", err2) end
     
-    print("DEBUG: Input events connected")
-    
     -- Connect heartbeat
     RunService.Heartbeat:Connect(onHeartbeat)
-    print("DEBUG: Heartbeat connected")
     
     -- Setup character
     if player.Character then
-        print("DEBUG: Character already exists, setting up...")
         onCharacterAdded(player.Character)
-    else
-        print("DEBUG: Waiting for character...")
     end
     
     player.CharacterAdded:Connect(onCharacterAdded)
-    print("DEBUG: CharacterAdded event connected")
     
     -- Listen for stat changes
     DataHandler.OnDataChanged.Event:Connect(function()
         updateMovementSpeed()
     end)
-    
-    print("MovementController initialized with enhanced debugging")
-    
-    -- Test input immediately
-    wait(1)
-    self:TestInput()
 end
 
 return MovementController 

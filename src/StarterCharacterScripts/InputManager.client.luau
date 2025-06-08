@@ -1,19 +1,13 @@
+-- Input Manager (Simplified - Dash system now handles its own inputs)
+-- This file is kept for compatibility but the main dash functionality 
+-- is now handled directly in DashClient.client.luau with double-tap detection
+
 local UIS = game:GetService("UserInputService")
-local RS = game:GetService("ReplicatedStorage")
-local DashBindable = RS:WaitForChild("BindableFunctions"):WaitForChild("DashBindable")
+local Players = game:GetService("Players")
 
-local dashDirection = Vector3.new(0, 0, -1)
+local player = Players.LocalPlayer
 
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+-- Input manager loaded - dash controls handled by double-tap system
 
-    if input.KeyCode == Enum.KeyCode.Q then
-        DashBindable:Invoke(dashDirection)
-    end
-
-    if input.KeyCode == Enum.KeyCode.W then dashDirection = Vector3.new(0, 0, -1) end
-    if input.KeyCode == Enum.KeyCode.A then dashDirection = Vector3.new(-1, 0, 0) end
-    if input.KeyCode == Enum.KeyCode.S then dashDirection = Vector3.new(0, 0, 1) end
-    if input.KeyCode == Enum.KeyCode.D then dashDirection = Vector3.new(1, 0, 0) end
-end)
+-- Optional: Add any additional input handling here if needed
+-- The dash system is now self-contained in DashClient.client.luau

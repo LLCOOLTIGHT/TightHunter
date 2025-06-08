@@ -1,10 +1,8 @@
 -- Client initialization script
-print("=== CLIENT SCRIPT STARTING ===")
+-- Client script starting
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-print("DEBUG: Services loaded")
 
 -- Wait for shared modules with timeout
 local Shared = nil
@@ -17,11 +15,8 @@ if not success then
     return
 end
 
-print("DEBUG: Shared folder found")
-
 -- Initialize client-side systems
 local player = Players.LocalPlayer
-print("DEBUG: Player:", player.Name)
 
 -- Load modules with error handling
 local DataHandler = nil
@@ -36,8 +31,6 @@ if not success1 then
     return
 end
 
-print("DEBUG: DataHandler loaded")
-
 local success2, err2 = pcall(function()
     MovementController = require(script.MovementController)
 end)
@@ -46,8 +39,6 @@ if not success2 then
     warn("Failed to load MovementController:", err2)
     return
 end
-
-print("DEBUG: MovementController loaded")
 
 -- Initialize data handler first
 local success3, err3 = pcall(function()
@@ -59,8 +50,6 @@ if not success3 then
     return
 end
 
-print("DEBUG: DataHandler initialized")
-
 -- Initialize movement controller
 local success4, err4 = pcall(function()
     MovementController:Init()
@@ -71,26 +60,19 @@ if not success4 then
     return
 end
 
-print("DEBUG: MovementController initialized")
-
 -- Setup data change listener
 DataHandler.OnDataChanged.Event:Connect(function(newData)
-    print("Player data updated:", newData.Stats.Level, "Level", newData.Stats.EXP, "EXP")
-    print("Agility:", newData.Stats.Agility, "Constitution:", newData.Stats.Constitution)
+    -- Data updated silently - can add UI updates here
 end)
 
 -- Setup movement event listeners
-MovementController.OnDash.Event:Connect(function(direction)
-    print("Player dashed in direction:", direction)
-    -- Here you could add visual/audio effects for dashing
-end)
+-- Old dash event listener removed - dash system now handled by StarterCharacterScripts
 
 MovementController.OnWallRun.Event:Connect(function(isWallRunning, wall)
     if isWallRunning then
-        print("Started wall running on:", wall.Name)
-        -- Here you could add wall running visual effects
+        -- Wall running started - can add visual effects here
     else
-        print("Stopped wall running")
+        -- Wall running stopped
     end
 end)
 
@@ -102,12 +84,5 @@ MovementController.OnStaminaChanged.Event:Connect(function(currentStamina, maxSt
     end
 end)
 
-print("=== CLIENT INITIALIZED SUCCESSFULLY ===")
-print("Enhanced movement system ready!")
-print("Controls:")
-print("- WASD: Move")
-print("- Left Shift: Sprint (consumes stamina)")
-print("- Q: Dash (2 second cooldown)")
-print("- Space: Jump (enhanced wall jump when wall running)")
-print("=== PRESS KEYS TO TEST MOVEMENT ===")
+-- Client initialized successfully with enhanced movement system
 
