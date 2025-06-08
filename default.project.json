@@ -6,6 +6,9 @@
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
+      },
+      "BindableFunctions": {
+        "$path": "src/ReplicatedStorage/BindableFunctions"
       }
     },
 
@@ -23,6 +26,9 @@
         "Client": {
           "$path": "src/client"
         }
+      },
+      "StarterCharacterScripts": {
+        "$path": "src/StarterCharacterScripts"
       }
     },
 
