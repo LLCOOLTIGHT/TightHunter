@@ -46,6 +46,7 @@ local movementState = {
     stamina = Config.MaxStamina,
     wallRunStartTime = 0,
     currentWall = nil,
+    wallRunBodyVelocity = nil, -- Track the current wall run BodyVelocity
 }
 
 -- Input tracking
@@ -106,38 +107,115 @@ end
 
 -- Old dash function removed - now using enhanced double-tap dash system in StarterCharacterScripts
 
--- Wall running detection
+-- Enhanced wall detection - more precise and prevents false positives
+local function isStillTouchingWall()
+    if not rootPart or not humanoid then return false, nil end
+    
+    -- Only detect walls when moving and slightly off the ground (prevents hugging issues)
+    if humanoid.MoveDirection.Magnitude < 0.1 or rootPart.Position.Y < workspace.FallenPartsDestroyHeight + 5 then
+        return false, nil
+    end
+    
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {character}
+    
+    -- Use shorter, more precise raycasts offset from character center
+    local characterCenter = rootPart.Position + Vector3.new(0, 0, 0)
+    local directions = {
+        rootPart.CFrame.RightVector * 2.5,    -- Right (shorter distance)
+        -rootPart.CFrame.RightVector * 2.5,   -- Left  (shorter distance)
+    }
+    
+    -- Check each direction for walls
+    for i, direction in pairs(directions) do
+        local raycast = workspace:Raycast(characterCenter, direction, rayParams)
+        if raycast and raycast.Instance and raycast.Instance.CanCollide then
+            -- Additional check: make sure we're actually moving toward or along the wall
+            local wallNormal = raycast.Normal
+            local moveDirection = humanoid.MoveDirection
+            local dotProduct = wallNormal:Dot(moveDirection)
+            
+            -- Only return true if we're moving somewhat parallel to the wall (not directly into it)
+            if math.abs(dotProduct) < 0.8 then  -- Allow some tolerance
+                return true, raycast.Instance
+            end
+        end
+    end
+    
+    return false, nil
+end
+
+-- Wall running detection and management
 local function detectWallRunning()
     if not rootPart then return end
     
-    local raycast = workspace:Raycast(rootPart.Position, rootPart.CFrame.RightVector * 5)
-    if not raycast then
-        raycast = workspace:Raycast(rootPart.Position, -rootPart.CFrame.RightVector * 5)
-    end
-    
-    if raycast and raycast.Instance and raycast.Instance.CanCollide then
-        local wall = raycast.Instance
-        if wall ~= movementState.currentWall then
+    -- If we're currently wall running, check if we're still touching a wall
+    if movementState.isWallRunning then
+        local stillTouching, wall = isStillTouchingWall()
+        
+        -- Check if wall run should end
+        local shouldEndWallRun = false
+        
+        if not stillTouching then
+            shouldEndWallRun = true
+        elseif tick() - movementState.wallRunStartTime > Config.WallRunDuration then
+            shouldEndWallRun = true -- Time limit reached
+        elseif humanoid and humanoid.FloorMaterial ~= Enum.Material.Air then
+            shouldEndWallRun = true -- Landed on ground
+        end
+        
+        if shouldEndWallRun then
+            -- End wall run immediately
+            if movementState.wallRunBodyVelocity then
+                movementState.wallRunBodyVelocity:Destroy()
+                movementState.wallRunBodyVelocity = nil
+            end
+            
+            -- Reset humanoid state to ensure proper physics
+            if humanoid then
+                humanoid.PlatformStand = false
+                -- Re-enable default humanoid states
+                humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+                humanoid:SetStateEnabled(Enum.HumanoidStateType.Flying, true)
+            end
+            
+            movementState.isWallRunning = false
+            movementState.currentWall = nil
+            MovementController.OnWallRun:Fire(false, nil)
+            return
+        end
+    else
+        -- Not currently wall running, check if we should start
+        local touchingWall, wall = isStillTouchingWall()
+        
+        -- Only start wall running if: moving, in air, and has some velocity
+        local velocity = rootPart.AssemblyLinearVelocity
+        local isInAir = not humanoid.FloorMaterial or humanoid.FloorMaterial == Enum.Material.Air
+        local hasMinimumSpeed = velocity.Magnitude > 10
+        
+        if touchingWall and humanoid and humanoid.MoveDirection.Magnitude > 0 and isInAir and hasMinimumSpeed then
+            -- Start wall running
             movementState.currentWall = wall
             movementState.wallRunStartTime = tick()
             movementState.isWallRunning = true
             
-            -- Prevent falling while wall running
+            -- Disable default humanoid states that cause jittering
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Flying, false)
+            
+            -- Prevent falling while wall running (increased Y velocity)
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.MaxForce = Vector3.new(0, 4000, 0)
-            bodyVelocity.Velocity = Vector3.new(0, 5, 0)
+            bodyVelocity.Velocity = Vector3.new(0, 15, 0)  -- Increased from 5 to 15
             bodyVelocity.Parent = rootPart
             
-            MovementController.OnWallRun:Fire(true, wall)
+            -- Store reference for proper cleanup
+            movementState.wallRunBodyVelocity = bodyVelocity
             
-            -- End wall run after duration
-            game:GetService("Debris"):AddItem(bodyVelocity, Config.WallRunDuration)
-        end
-    else
-        if movementState.isWallRunning then
-            movementState.isWallRunning = false
-            movementState.currentWall = nil
-            MovementController.OnWallRun:Fire(false, nil)
+            MovementController.OnWallRun:Fire(true, wall)
         end
     end
 end
@@ -176,15 +254,31 @@ local function onKeyDown(key)
         
         -- Wall run jump
         if movementState.isWallRunning then
+            -- Clean up wall run BodyVelocity before jumping
+            if movementState.wallRunBodyVelocity then
+                movementState.wallRunBodyVelocity:Destroy()
+                movementState.wallRunBodyVelocity = nil
+            end
+            
             local jumpDirection = rootPart.CFrame.LookVector + Vector3.new(0, 1, 0)
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
             bodyVelocity.Velocity = jumpDirection.Unit * Config.WallRunJumpPower
             bodyVelocity.Parent = rootPart
-            game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+            
+            -- Shorter cleanup time to prevent lingering forces
+            game:GetService("Debris"):AddItem(bodyVelocity, 0.3)
+            
+            print("[WALL JUMP] Applied velocity:", math.floor(Config.WallRunJumpPower), "in direction:", jumpDirection.Unit)
+            
+            -- Re-enable humanoid states when wall jumping
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Flying, true)
             
             movementState.isWallRunning = false
             movementState.currentWall = nil
+            MovementController.OnWallRun:Fire(false, nil)
         end
     end
     
@@ -221,10 +315,16 @@ local function onCharacterAdded(newCharacter)
         return
     end
     
-    -- Reset movement state
+    -- Reset movement state and clean up any existing BodyVelocity
+    if movementState.wallRunBodyVelocity then
+        movementState.wallRunBodyVelocity:Destroy()
+        movementState.wallRunBodyVelocity = nil
+    end
+    
     movementState.stamina = calculateMaxStamina()
     movementState.isSprinting = false
     movementState.isWallRunning = false
+    movementState.currentWall = nil
     
     -- Set initial movement speed
     updateMovementSpeed()
@@ -237,6 +337,23 @@ local function onHeartbeat(deltaTime)
     updateStamina(deltaTime)
     detectWallRunning()
     updateMovementSpeed()
+    
+    -- Debug wall running every 0.5 seconds (with safety check)
+    if tick() % 0.5 < deltaTime and debugWallRunning then
+        pcall(debugWallRunning)  -- Safe call to prevent nil errors
+    end
+    
+    -- Detect unexpected launches (high upward velocity)
+    if rootPart then
+        local velocity = rootPart.AssemblyLinearVelocity
+        -- Only warn about really high velocities (>70) or if they persist
+        if velocity.Y > 70 then
+            warn("[MAJOR LAUNCH DETECTED] Unexpected upward velocity:", math.floor(velocity.Y), "| Wall running:", movementState.isWallRunning)
+        elseif velocity.Y > 50 and not movementState.isWallRunning then
+            -- Log minor launches for debugging but don't spam console
+            print("[Minor Launch]", math.floor(velocity.Y), "Y velocity | Jumping:", keysPressed.Space, "| On ground:", humanoid.FloorMaterial ~= Enum.Material.Air)
+        end
+    end
 end
 
 -- Public functions
@@ -258,7 +375,19 @@ function MovementController:IsWallRunning()
     return movementState.isWallRunning
 end
 
--- Debug function removed to reduce console spam
+-- Debug function for wall running
+local function debugWallRunning()
+    if movementState.isWallRunning then
+        local stillTouching = isStillTouchingWall()
+        local bodyVelExists = movementState.wallRunBodyVelocity ~= nil
+        print("[WALL RUN DEBUG] Still touching:", stillTouching, "| BodyVel exists:", bodyVelExists, "| Time:", math.floor(tick() - movementState.wallRunStartTime))
+        
+        if rootPart then
+            local velocity = rootPart.AssemblyLinearVelocity
+            print("[WALL RUN DEBUG] Current velocity:", math.floor(velocity.X), math.floor(velocity.Y), math.floor(velocity.Z))
+        end
+    end
+end
 
 -- Initialize
 function MovementController:Init()

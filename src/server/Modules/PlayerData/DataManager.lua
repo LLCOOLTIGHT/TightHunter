@@ -25,11 +25,20 @@ function DataManager:Init()
     Players.PlayerAdded:Connect(loadProfile)
     Players.PlayerRemoving:Connect(saveProfile)
 
+    -- Load profiles for players already in the game
+    for _, player in ipairs(Players:GetPlayers()) do
+        spawn(function()
+            loadProfile(player)
+        end)
+    end
+
     game:BindToClose(function()
         for _, player in ipairs(Players:GetPlayers()) do
             saveProfile(player)
         end
     end)
+    
+    print("DataManager initialized with", #Players:GetPlayers(), "existing players")
 end
 
 return DataManager

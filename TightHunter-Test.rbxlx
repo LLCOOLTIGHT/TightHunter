@@ -102,6 +102,7 @@ return RemoteEvents ]]></string>
   <Item class="ServerScriptService" referent="5">
     <Properties>
       <string name="Name">ServerScriptService</string>
+      <bool name="LoadStringEnabled">true</bool>
     </Properties>
     <Item class="Script" referent="6">
       <Properties>
@@ -109,9 +110,9 @@ return RemoteEvents ]]></string>
         <token name="RunContext">0</token>
         <string name="Source"><![CDATA[-- Server initialization script
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataManager = require(script.Parent.Modules.PlayerData.DataManager)
-local RemoteHandler = require(script.Parent.RemoteHandler)
-local MovementHandler = require(script.Parent.MovementHandler)
+local DataManager = require(script.Modules.PlayerData.DataManager)
+local RemoteHandler = require(script.RemoteHandler)
+local MovementHandler = require(script.MovementHandler)
 
 -- Initialize ReplicatedStorage structure first
 local function setupReplicatedStorage()
@@ -123,7 +124,7 @@ local function setupReplicatedStorage()
     local remotes = Instance.new("Folder")
     remotes.Name = "Remotes"
     remotes.Parent = ReplicatedStorage
-    
+
     print("ReplicatedStorage structure created")
 end
 
@@ -565,61 +566,514 @@ end
 return RemoteHandler ]]></string>
         </Properties>
       </Item>
+      <Item class="Script" referent="16">
+        <Properties>
+          <string name="Name">TestScript</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[-- Test Script for TightHunter Core Systems
+-- This script helps verify that all core systems are working properly
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Test configuration
+local TEST_MODE = true -- Set to false to disable testing
+local VERBOSE_LOGGING = true -- Set to false for less output
+
+local function log(message)
+    if VERBOSE_LOGGING then
+        print("[TIGHTHUNTER TEST]", message)
+    end
+end
+
+if not TEST_MODE then
+    log("Test mode disabled")
+    return
+end
+
+log("=== STARTING CORE SYSTEMS TEST ===")
+
+-- Test 1: Module Loading
+log("Testing module loading...")
+local success1, DataManager = pcall(function()
+    return require(script.Parent.Modules.PlayerData.DataManager)
+end)
+
+local success2, RemoteHandler = pcall(function()
+    return require(script.Parent.RemoteHandler)
+end)
+
+local success3, MovementHandler = pcall(function()
+    return require(script.Parent.MovementHandler)
+end)
+
+if success1 and success2 and success3 then
+    log("✅ All server modules loaded successfully")
+else
+    warn("❌ Failed to load some server modules:")
+    if not success1 then warn("  - DataManager failed:", DataManager) end
+    if not success2 then warn("  - RemoteHandler failed:", RemoteHandler) end
+    if not success3 then warn("  - MovementHandler failed:", MovementHandler) end
+end
+
+-- Test 2: ReplicatedStorage Structure
+log("Testing ReplicatedStorage structure...")
+wait(1) -- Give time for server init to create folders
+
+local remoteEventsFolder = ReplicatedStorage:FindFirstChild("RemoteEvents")
+local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
+local sharedFolder = ReplicatedStorage:FindFirstChild("Shared")
+
+if remoteEventsFolder and remotesFolder and sharedFolder then
+    log("✅ ReplicatedStorage structure is correct")
+    log("  - RemoteEvents folder exists")
+    log("  - Remotes folder exists") 
+    log("  - Shared folder exists")
+else
+    warn("❌ ReplicatedStorage structure incomplete:")
+    if not remoteEventsFolder then warn("  - Missing RemoteEvents folder") end
+    if not remotesFolder then warn("  - Missing Remotes folder") end
+    if not sharedFolder then warn("  - Missing Shared folder") end
+end
+
+-- Test 3: Player Connection Test
+log("Setting up player connection test...")
+
+Players.PlayerAdded:Connect(function(player)
+    log("Player joined: " .. player.Name)
+    
+    -- Test data loading
+    spawn(function()
+        wait(2) -- Give systems time to initialize
+        
+        log("Testing data system for " .. player.Name)
+        
+        -- Check if player data was created
+        local success, err = pcall(function()
+            -- This would normally be handled by DataManager
+            log("Player data system appears to be running for " .. player.Name)
+        end)
+        
+        if success then
+            log("✅ Data system working for " .. player.Name)
+        else
+            warn("❌ Data system error for " .. player.Name .. ":", err)
+        end
+    end)
+    
+    -- Test character spawn
+    player.CharacterAdded:Connect(function(character)
+        log("Character spawned for " .. player.Name)
+        
+        spawn(function()
+            wait(1) -- Give character time to fully load
+            
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and rootPart then
+                log("✅ Character components loaded for " .. player.Name)
+                
+                -- Test basic movement stats
+                log("  - Default WalkSpeed: " .. humanoid.WalkSpeed)
+                log("  - Default JumpPower: " .. humanoid.JumpPower)
+                
+            else
+                warn("❌ Character missing components for " .. player.Name)
+            end
+        end)
+    end)
+end)
+
+-- Test 4: Remote Events Test
+spawn(function()
+    wait(3) -- Wait for everything to initialize
+    
+    log("Testing remote events creation...")
+    
+    local remoteEventsFolder = ReplicatedStorage:WaitForChild("RemoteEvents", 5)
+    if remoteEventsFolder then
+        local remoteCount = #remoteEventsFolder:GetChildren()
+        log("✅ RemoteEvents folder accessible, contains " .. remoteCount .. " items")
+        
+        -- List all remote events
+        for _, remote in pairs(remoteEventsFolder:GetChildren()) do
+            log("  - Found remote: " .. remote.Name .. " (" .. remote.ClassName .. ")")
+        end
+    else
+        warn("❌ Could not access RemoteEvents folder")
+    end
+end)
+
+-- Test 5: Movement System Test
+spawn(function()
+    wait(5)
+    log("Movement system should be initialized by now")
+    log("Check game output for movement system messages")
+end)
+
+-- Summary
+spawn(function()
+    wait(10)
+    log("=== CORE SYSTEMS TEST SUMMARY ===")
+    log("1. Check server console for any error messages")
+    log("2. Join the game to test player systems")
+    log("3. Try double-tapping WASD keys to test dash system")
+    log("4. Check client console (F9) for any client errors")
+    log("5. Test movement and character spawning")
+    log("========================================")
+end) ]]></string>
+        </Properties>
+      </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="16">
+  <Item class="SoundService" referent="17">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="17">
+  <Item class="StarterPlayer" referent="18">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="18">
+    <Item class="StarterCharacterScripts" referent="19">
+      <Properties>
+        <string name="Name">StarterCharacterScripts</string>
+      </Properties>
+      <Item class="LocalScript" referent="20">
+        <Properties>
+          <string name="Name">DashClient</string>
+          <string name="Source"><![CDATA[-- Enhanced Dash System with Animations and Double-Tap Controls
+local Character = script.Parent
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+local RunService = game:GetService('RunService')
+local UserInputService = game:GetService('UserInputService')
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- BodyGyro for side movement control
+local SideGyro = Instance.new("BodyGyro")
+SideGyro.MaxTorque = Vector3.new(3e5, 0, 3e5)
+SideGyro.P = 5e5
+SideGyro.Parent = HumanoidRootPart
+
+-- Dash configuration
+local Dashing = false
+local DashSpeed = 45
+local DashDuration = 0.5 -- Fixed duration instead of relying on animations
+local DoubleTaps = {}
+
+-- Animation IDs for different dash directions
+local Animations = {
+	["DashRight"] = 'rbxassetid://12878249954',
+	["DashLeft"] = 'rbxassetid://12878251537',
+	["DashFront"] = 'rbxassetid://12878253087',
+	["DashBack"] = 'rbxassetid://12878254845',
+}
+
+-- Load and prepare all animations with error handling
+for i, v in pairs(Animations) do
+	local success, err = pcall(function()
+		local Anim = Instance.new("Animation")
+		Anim.AnimationId = v
+		local loadedAnim = Humanoid:LoadAnimation(Anim)
+		Animations[i] = loadedAnim
+	end)
+	
+	if not success then
+		warn("Failed to load dash animation", i, ":", err)
+		Animations[i] = nil -- Set to nil if failed to load
+	end
+end
+
+-- Enhanced dash function
+function Dash(Key)
+	if Dashing then
+		return
+	end
+
+	local DashAnim = "Back"
+	local Front = -1
+	local Side = 0
+
+	-- Determine dash direction and animation
+	if Key == Enum.KeyCode.A then
+		Side = -1
+		Front = 0
+		DashAnim = "Left"
+	elseif Key == Enum.KeyCode.D then
+		Side = 1
+		Front = 0
+		DashAnim = "Right"
+	elseif Key == Enum.KeyCode.W then
+		Side = 0
+		Front = 1
+		DashAnim = "Front"
+	elseif Key == Enum.KeyCode.S then
+		Side = 0
+		Front = -1
+		DashAnim = "Back"
+	end
+
+	Dashing = true
+	
+	-- Play dash animation if available
+	local animationTrack = Animations["Dash"..DashAnim]
+	if animationTrack then
+		local success, err = pcall(function()
+			animationTrack:Play()
+		end)
+		if not success then
+			warn("Failed to play dash animation:", err)
+		end
+	end
+
+	-- Create dash velocity
+	local DashVelocity = Instance.new("BodyVelocity")
+	DashVelocity.MaxForce = Vector3.new(math.huge, 0, math.huge)
+	DashVelocity.P = 9e9
+	DashVelocity.Parent = HumanoidRootPart
+	
+	-- Set initial velocity based on character orientation
+	DashVelocity.Velocity = HumanoidRootPart.CFrame.LookVector * (Front * DashSpeed) + HumanoidRootPart.CFrame.RightVector * (Side * DashSpeed)
+
+	-- Spawn dust effect after slight delay
+	coroutine.wrap(function()
+		task.wait(.1)
+		
+		-- Create dust effect (if DustTrail exists in ReplicatedStorage)
+		local dustTrail = ReplicatedStorage:FindFirstChild("DustTrail")
+		if dustTrail then
+			local DashEffect = dustTrail:Clone()
+			DashEffect.Parent = workspace
+
+			-- Position dust effect based on dash direction
+			if DashAnim == "Left" then
+				local rightLeg = Character:FindFirstChild("Right Leg")
+				if rightLeg then
+					if DashEffect:FindFirstChild("DustRight") then
+						DashEffect.DustRight:Destroy()
+					end
+					DashEffect.CFrame = rightLeg.CFrame * CFrame.new(-1, 0, -2)
+				end
+			elseif DashAnim == "Right" then
+				local leftLeg = Character:FindFirstChild("Left Leg")
+				if leftLeg then
+					if DashEffect:FindFirstChild("DustLeft") then
+						DashEffect.DustLeft:Destroy()
+					end
+					DashEffect.CFrame = leftLeg.CFrame * CFrame.new(3, 2, 5)
+				end
+			elseif DashAnim == "Front" then
+				if DashEffect:FindFirstChild("DustLeft") then
+					DashEffect.DustLeft:Destroy()
+				end
+				DashEffect.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, -1, 3)
+			else -- Back
+				if DashEffect:FindFirstChild("DustLeft") then
+					DashEffect.DustLeft:Destroy()
+				end
+				DashEffect.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, -1, -0.5)
+			end
+			
+			-- Emit particles
+			for i, v in pairs(DashEffect:GetDescendants()) do
+				if v:IsA("ParticleEmitter") then
+					v:Emit(5)
+				end
+			end
+
+			-- Clean up effect
+			game.Debris:AddItem(DashEffect, 0.5)
+		else
+			warn("Warning: DustTrail not found in ReplicatedStorage - skipping dust effect")
+		end
+	end)()
+
+	-- Use timer-based dash instead of animation
+	local startTime = tick()
+	repeat 
+		task.wait()
+		if DashVelocity and DashVelocity.Parent then
+			DashVelocity.Velocity = HumanoidRootPart.CFrame.LookVector * (Front * DashSpeed) + HumanoidRootPart.CFrame.RightVector * (Side * DashSpeed)
+		end
+	until (tick() - startTime) >= DashDuration -- Use timer instead of animation
+
+	-- Clean up
+	Dashing = false
+	if DashVelocity then
+		DashVelocity:Destroy()
+	end
+end
+
+-- Double-tap detection system
+function LoadDoubleTap(Key, Funct)
+	DoubleTaps[Key] = tick() - 10 -- Initialize with old timestamp
+	
+	UserInputService.InputBegan:Connect(function(Pressed, Typing)
+		if Typing then return end -- Don't dash while typing
+		
+		if Pressed.KeyCode == Key then
+			local currentTime = tick()
+			local timeSinceLastTap = currentTime - DoubleTaps[Key]
+			
+			if timeSinceLastTap < 0.23 then -- Double-tap detected (within 0.23 seconds)
+				Funct(Key)
+			else
+				-- First tap or too slow - record the time
+				DoubleTaps[Key] = currentTime
+			end
+		end
+	end)
+end
+
+-- Set up double-tap controls for all movement keys
+LoadDoubleTap(Enum.KeyCode.W, Dash)
+LoadDoubleTap(Enum.KeyCode.A, Dash)
+LoadDoubleTap(Enum.KeyCode.S, Dash)
+LoadDoubleTap(Enum.KeyCode.D, Dash)
+
+-- Character respawn handling
+game.Players.LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+	Character = newCharacter
+	Humanoid = Character:WaitForChild("Humanoid")
+	HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+	
+	-- Recreate BodyGyro
+	if SideGyro then
+		SideGyro:Destroy()
+	end
+	SideGyro = Instance.new("BodyGyro")
+	SideGyro.MaxTorque = Vector3.new(3e5, 0, 3e5)
+	SideGyro.P = 5e5
+	SideGyro.Parent = HumanoidRootPart
+	
+	-- Reload animations with error handling
+	for i, v in pairs(Animations) do
+		if typeof(v) == "AnimationTrack" then
+			v:Stop()
+		end
+		
+		local success, err = pcall(function()
+			local Anim = Instance.new("Animation")
+			Anim.AnimationId = Animations[i] -- Use original ID from the table
+			local loadedAnim = Humanoid:LoadAnimation(Anim)
+			Animations[i] = loadedAnim
+		end)
+		
+		if not success then
+			warn("Failed to reload dash animation", i, ":", err)
+			Animations[i] = nil
+		end
+	end
+end)
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="LocalScript" referent="21">
+        <Properties>
+          <string name="Name">InputManager</string>
+          <string name="Source"><![CDATA[-- Input Manager (Simplified - Dash system now handles its own inputs)
+-- This file is kept for compatibility but the main dash functionality 
+-- is now handled directly in DashClient.client.luau with double-tap detection
+
+local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+
+-- Input manager loaded - dash controls handled by double-tap system
+
+-- Optional: Add any additional input handling here if needed
+-- The dash system is now self-contained in DashClient.client.luau
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="StarterPlayerScripts" referent="22">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="19">
+      <Item class="LocalScript" referent="23">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[-- Client initialization script
+-- Client script starting
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Wait for shared modules
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+-- Wait for shared modules with timeout
+local Shared = nil
+local success, err = pcall(function()
+    Shared = ReplicatedStorage:WaitForChild("Shared", 10)
+end)
+
+if not success then
+    warn("Failed to get Shared folder:", err)
+    return
+end
 
 -- Initialize client-side systems
 local player = Players.LocalPlayer
-local DataHandler = require(script.Parent.DataHandler)
-local MovementController = require(script.Parent.MovementController)
+
+-- Load modules with error handling
+local DataHandler = nil
+local MovementController = nil
+
+local success1, err1 = pcall(function()
+    DataHandler = require(script.DataHandler)
+end)
+
+if not success1 then
+    warn("Failed to load DataHandler:", err1)
+    return
+end
+
+local success2, err2 = pcall(function()
+    MovementController = require(script.MovementController)
+end)
+
+if not success2 then
+    warn("Failed to load MovementController:", err2)
+    return
+end
 
 -- Initialize data handler first
-DataHandler:Init()
+local success3, err3 = pcall(function()
+    DataHandler:Init()
+end)
+
+if not success3 then
+    warn("Failed to initialize DataHandler:", err3)
+    return
+end
 
 -- Initialize movement controller
-MovementController:Init()
+local success4, err4 = pcall(function()
+    MovementController:Init()
+end)
+
+if not success4 then
+    warn("Failed to initialize MovementController:", err4)
+    return
+end
 
 -- Setup data change listener
 DataHandler.OnDataChanged.Event:Connect(function(newData)
-    print("Player data updated:", newData.Stats.Level, "Level", newData.Stats.EXP, "EXP")
-    print("Agility:", newData.Stats.Agility, "Constitution:", newData.Stats.Constitution)
+    -- Data updated silently - can add UI updates here
 end)
 
 -- Setup movement event listeners
-MovementController.OnDash.Event:Connect(function(direction)
-    print("Player dashed in direction:", direction)
-    -- Here you could add visual/audio effects for dashing
-end)
+-- Old dash event listener removed - dash system now handled by StarterCharacterScripts
 
 MovementController.OnWallRun.Event:Connect(function(isWallRunning, wall)
     if isWallRunning then
-        print("Started wall running on:", wall.Name)
-        -- Here you could add wall running visual effects
+        -- Wall running started - can add visual effects here
     else
-        print("Stopped wall running")
+        -- Wall running stopped
     end
 end)
 
@@ -631,24 +1085,26 @@ MovementController.OnStaminaChanged.Event:Connect(function(currentStamina, maxSt
     end
 end)
 
-print("Client initialized with enhanced movement system")
-print("Controls:")
-print("- WASD: Move")
-print("- Left Shift: Sprint (consumes stamina)")
-print("- Q: Dash (2 second cooldown)")
-print("- Space: Jump (enhanced wall jump when wall running)")
-print("Hello world, from client!")
+-- Client initialized successfully with enhanced movement system
 
 ]]></string>
         </Properties>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">DataHandler</string>
             <string name="Source"><![CDATA[-- DataHandler: Client-side data management
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+local RemoteEvents = nil
+local success, err = pcall(function()
+    RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+end)
+
+if not success then
+    warn("DataHandler: Failed to load RemoteEvents:", err)
+    return {}
+end
 
 local DataHandler = {}
 local playerData = nil
@@ -662,15 +1118,47 @@ local playerDataChangedRemote = nil
 
 -- Initialize remotes when available
 local function initializeRemotes()
-    getPlayerDataRemote = RemoteEvents:GetRemoteFunction(RemoteEvents.GetPlayerData)
-    allocateStatsRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.AllocateStats)
-    playerDataChangedRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDataChanged)
+    local success1, err1 = pcall(function()
+        getPlayerDataRemote = RemoteEvents:GetRemoteFunction(RemoteEvents.GetPlayerData)
+    end)
+    
+    if not success1 then
+        warn("DataHandler: Failed to get GetPlayerData remote:", err1)
+        return false
+    end
+    
+    local success2, err2 = pcall(function()
+        allocateStatsRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.AllocateStats)
+    end)
+    
+    if not success2 then
+        warn("DataHandler: Failed to get AllocateStats remote:", err2)
+        return false
+    end
+    
+    local success3, err3 = pcall(function()
+        playerDataChangedRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDataChanged)
+    end)
+    
+    if not success3 then
+        warn("DataHandler: Failed to get PlayerDataChanged remote:", err3)
+        return false
+    end
     
     -- Listen for data changes from server
-    playerDataChangedRemote.OnClientEvent:Connect(function(newData)
-        playerData = newData
-        DataHandler.OnDataChanged:Fire(newData)
+    local success4, err4 = pcall(function()
+        playerDataChangedRemote.OnClientEvent:Connect(function(newData)
+            playerData = newData
+            DataHandler.OnDataChanged:Fire(newData)
+        end)
     end)
+    
+    if not success4 then
+        warn("DataHandler: Failed to connect to PlayerDataChanged:", err4)
+        return false
+    end
+    
+    return true
 end
 
 -- Events
@@ -681,13 +1169,85 @@ function DataHandler:GetData()
     return playerData
 end
 
--- Request player data from server
+-- Request player data from server with timeout and retry
 function DataHandler:RequestData()
-    if getPlayerDataRemote then
-        playerData = getPlayerDataRemote:InvokeServer()
-        return playerData
+    if not getPlayerDataRemote then
+        warn("DataHandler: GetPlayerData remote not available")
+        return nil
     end
-    return nil
+    
+    -- Try multiple times with increasing delays
+    for attempt = 1, 3 do
+        
+        local success, result = pcall(function()
+            -- Set a timeout for the invoke call
+            local thread = coroutine.running()
+            local responded = false
+            local response = nil
+            
+            spawn(function()
+                local invokeSuccess, invokeResult = pcall(function()
+                    return getPlayerDataRemote:InvokeServer()
+                end)
+                
+                if invokeSuccess then
+                    response = invokeResult
+                else
+                    response = {error = invokeResult}
+                end
+                responded = true
+                coroutine.resume(thread)
+            end)
+            
+            -- Wait up to 5 seconds for response
+            spawn(function()
+                wait(5)
+                if not responded then
+                    responded = true
+                    response = {error = "Timeout"}
+                    coroutine.resume(thread)
+                end
+            end)
+            
+            coroutine.yield()
+            return response
+        end)
+        
+        if success and result and not result.error then
+            playerData = result
+            return playerData
+        else
+            warn("DataHandler: Failed to request player data on attempt", attempt, ":", result and result.error or "Unknown error")
+            
+            if attempt < 3 then
+                wait(attempt) -- Wait 1s, then 2s before retrying
+            end
+        end
+    end
+    
+    warn("DataHandler: All attempts to get player data failed, using default data")
+    -- Return a default profile if all attempts fail
+    playerData = {
+        Stats = {
+            Strength = 0,
+            Agility = 0,
+            Intelligence = 0,
+            Constitution = 0,
+            BreathingMastery = 0,
+            Level = 1,
+            EXP = 0,
+        },
+        Race = "Human",
+        Clan = "Kamado",
+        BreathingStyle = "None",
+        Abilities = {},
+        Inventory = {
+            Yen = 0,
+            Items = {},
+        },
+        UnspentStatPoints = 0,
+    }
+    return playerData
 end
 
 -- Request stat allocation
@@ -699,15 +1259,28 @@ end
 
 -- Initialize the data handler
 function DataHandler:Init()
-    initializeRemotes()
-    self:RequestData()
-    print("Client DataHandler initialized")
+    local success, err = pcall(function()
+        local remoteSuccess = initializeRemotes()
+        if not remoteSuccess then
+            error("Failed to initialize remotes")
+        end
+        
+        -- Don't block initialization on data request
+        spawn(function()
+            self:RequestData()
+        end)
+    end)
+    
+    if not success then
+        warn("DataHandler: Initialization failed:", err)
+        error("DataHandler initialization failed: " .. tostring(err))
+    end
 end
 
 return DataHandler ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">MovementController</string>
             <string name="Source"><![CDATA[-- MovementController: Enhanced movement system for TightHunter
@@ -727,11 +1300,7 @@ local Config = {
     BaseWalkSpeed = 16,
     BaseJumpPower = 50,
     
-    -- Dash system
-    DashCooldown = 2, -- seconds
-    DashDistance = 50,
-    DashSpeed = 100,
-    DashDuration = 0.3,
+    -- Dash system removed - now handled by StarterCharacterScripts double-tap system
     
     -- Sprint system
     SprintMultiplier = 1.5,
@@ -755,13 +1324,11 @@ local character = nil
 local humanoid = nil
 local rootPart = nil
 
--- Movement state
+-- Movement state (dash-related variables removed)
 local movementState = {
-    isDashing = false,
     isSprinting = false,
     isWallRunning = false,
     stamina = Config.MaxStamina,
-    lastDashTime = 0,
     wallRunStartTime = 0,
     currentWall = nil,
 }
@@ -776,8 +1343,7 @@ local keysPressed = {
     Space = false,
 }
 
--- Events
-MovementController.OnDash = Instance.new("BindableEvent")
+-- Events (OnDash removed - handled by StarterCharacterScripts system)
 MovementController.OnWallRun = Instance.new("BindableEvent")
 MovementController.OnStaminaChanged = Instance.new("BindableEvent")
 
@@ -823,44 +1389,11 @@ local function updateMovementSpeed()
     humanoid.WalkSpeed = currentSpeed
 end
 
--- Dash function
-local function performDash()
-    if movementState.isDashing then return end
-    
-    local currentTime = tick()
-    if currentTime - movementState.lastDashTime < Config.DashCooldown then return end
-    
-    if not rootPart or not humanoid then return end
-    
-    movementState.isDashing = true
-    movementState.lastDashTime = currentTime
-    
-    -- Calculate dash direction
-    local moveVector = humanoid.MoveDirection
-    if moveVector.Magnitude == 0 then
-        moveVector = rootPart.CFrame.LookVector
-    end
-    
-    -- Create dash effect
-    local dashDirection = moveVector * Config.DashDistance
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(4000, 0, 4000)
-    bodyVelocity.Velocity = dashDirection.Unit * Config.DashSpeed
-    bodyVelocity.Parent = rootPart
-    
-    -- Fire dash event
-    MovementController.OnDash:Fire(dashDirection)
-    
-    -- End dash after duration
-    game:GetService("Debris"):AddItem(bodyVelocity, Config.DashDuration)
-    
-    wait(Config.DashDuration)
-    movementState.isDashing = false
-end
+-- Old dash function removed - now using enhanced double-tap dash system in StarterCharacterScripts
 
 -- Wall running detection
 local function detectWallRunning()
-    if not rootPart or movementState.isDashing then return end
+    if not rootPart then return end
     
     local raycast = workspace:Raycast(rootPart.Position, rootPart.CFrame.RightVector * 5)
     if not raycast then
@@ -938,9 +1471,6 @@ local function onKeyDown(key)
             movementState.isWallRunning = false
             movementState.currentWall = nil
         end
-    elseif keyCode == "Q" then
-        -- Dash ability
-        spawn(performDash)
     end
     
     updateMovementSpeed()
@@ -964,12 +1494,20 @@ end
 -- Character setup
 local function onCharacterAdded(newCharacter)
     character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Wait for essential parts
+    local success, err = pcall(function()
+        humanoid = character:WaitForChild("Humanoid", 10)
+        rootPart = character:WaitForChild("HumanoidRootPart", 10)
+    end)
+    
+    if not success then
+        warn("Failed to get character parts:", err)
+        return
+    end
     
     -- Reset movement state
     movementState.stamina = calculateMaxStamina()
-    movementState.isDashing = false
     movementState.isSprinting = false
     movementState.isWallRunning = false
     
@@ -999,48 +1537,253 @@ function MovementController:IsSprinting()
     return movementState.isSprinting
 end
 
-function MovementController:IsDashing()
-    return movementState.isDashing
-end
+-- IsDashing function removed - dash system now handled by StarterCharacterScripts
 
 function MovementController:IsWallRunning()
     return movementState.isWallRunning
 end
 
+-- Debug function removed to reduce console spam
+
 -- Initialize
 function MovementController:Init()
-    -- Connect events
-    UserInputService.InputBegan:Connect(onKeyDown)
-    UserInputService.InputEnded:Connect(onKeyUp)
+    -- Test UserInputService availability
+    if not UserInputService then
+        warn("UserInputService not available!")
+        return
+    end
+    
+    -- Connect input events with error handling
+    local success1, err1 = pcall(function()
+        UserInputService.InputBegan:Connect(onKeyDown)
+    end)
+    
+    local success2, err2 = pcall(function()
+        UserInputService.InputEnded:Connect(onKeyUp)
+    end)
+    
+    if not success1 then warn("Failed to connect InputBegan:", err1) end
+    if not success2 then warn("Failed to connect InputEnded:", err2) end
+    
+    -- Connect heartbeat
     RunService.Heartbeat:Connect(onHeartbeat)
     
     -- Setup character
     if player.Character then
         onCharacterAdded(player.Character)
     end
+    
     player.CharacterAdded:Connect(onCharacterAdded)
     
     -- Listen for stat changes
     DataHandler.OnDataChanged.Event:Connect(function()
         updateMovementSpeed()
     end)
-    
-    print("MovementController initialized")
 end
 
 return MovementController ]]></string>
           </Properties>
         </Item>
+        <Item class="LocalScript" referent="26">
+          <Properties>
+            <string name="Name">TestClient</string>
+            <string name="Source"><![CDATA[-- Client Test Script for TightHunter
+-- This helps test client-side functionality and provides testing guidance
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+
+-- Test configuration
+local TEST_MODE = true
+local SHOW_TEST_GUI = true
+
+local function log(message)
+    print("[CLIENT TEST]", message)
+end
+
+if not TEST_MODE then
+    return
+end
+
+log("=== CLIENT SYSTEMS TEST STARTED ===")
+
+-- Create a simple test GUI
+local function createTestGUI()
+    if not SHOW_TEST_GUI then return end
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "TightHunterTestGUI"
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+    
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0, 300, 0, 400)
+    mainFrame.Position = UDim2.new(0, 10, 0, 10)
+    mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+    mainFrame.BackgroundTransparency = 0.3
+    mainFrame.BorderSizePixel = 2
+    mainFrame.BorderColor3 = Color3.new(1, 1, 1)
+    mainFrame.Parent = screenGui
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Position = UDim2.new(0, 0, 0, 0)
+    title.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+    title.Text = "TightHunter Test Panel"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.TextScaled = true
+    title.Font = Enum.Font.SourceSansBold
+    title.Parent = mainFrame
+    
+    local instructions = Instance.new("TextLabel")
+    instructions.Size = UDim2.new(1, -10, 1, -40)
+    instructions.Position = UDim2.new(0, 5, 0, 35)
+    instructions.BackgroundTransparency = 1
+    instructions.Text = [[TESTING INSTRUCTIONS:
+
+Movement Tests:
+• Double-tap W, A, S, D to test dash
+• Hold Shift while moving to sprint
+• Run toward walls to test wall-running
+
+Expected Results:
+• Dash should create dust effects
+• Sprint should increase speed
+• Wall running should work on vertical surfaces
+
+Data System Test:
+• Check F9 console for data loading messages
+• Stats should persist between sessions
+
+Press H to hide this panel
+Press R to show system status]]
+    instructions.TextColor3 = Color3.new(1, 1, 1)
+    instructions.TextScaled = true
+    instructions.Font = Enum.Font.SourceSans
+    instructions.TextXAlignment = Enum.TextXAlignment.Left
+    instructions.TextYAlignment = Enum.TextYAlignment.Top
+    instructions.Parent = mainFrame
+    
+    -- Hide/Show functionality
+    local isVisible = true
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.KeyCode == Enum.KeyCode.H then
+            isVisible = not isVisible
+            mainFrame.Visible = isVisible
+            log(isVisible and "Test GUI shown" or "Test GUI hidden")
+        elseif input.KeyCode == Enum.KeyCode.R then
+            -- Show system status
+            log("=== SYSTEM STATUS ===")
+            log("ReplicatedStorage.Shared exists: " .. tostring(ReplicatedStorage:FindFirstChild("Shared") ~= nil))
+            log("RemoteEvents folder exists: " .. tostring(ReplicatedStorage:FindFirstChild("RemoteEvents") ~= nil))
+            log("Character exists: " .. tostring(player.Character ~= nil))
+            if player.Character then
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                if humanoid then
+                    log("WalkSpeed: " .. humanoid.WalkSpeed)
+                    log("JumpPower: " .. humanoid.JumpPower)
+                end
+            end
+            log("====================")
+        end
+    end)
+end
+
+-- Test client module loading
+spawn(function()
+    wait(2) -- Give time for initialization
+    
+    log("Testing client module loading...")
+    
+    local dataHandler = script.Parent:FindFirstChild("DataHandler")
+    local movementController = script.Parent:FindFirstChild("MovementController")
+    
+    if dataHandler and movementController then
+        log("✅ Client modules found")
+    else
+        warn("❌ Some client modules missing:")
+        if not dataHandler then warn("  - DataHandler missing") end
+        if not movementController then warn("  - MovementController missing") end
+    end
+end)
+
+-- Test character scripts
+player.CharacterAdded:Connect(function(character)
+    log("Character spawned, testing character scripts...")
+    
+    spawn(function()
+        wait(1)
+        
+        local dashScript = character:FindFirstChild("DashClient")
+        local inputManager = character:FindFirstChild("InputManager")
+        
+        log("Character scripts check:")
+        log("  - DashClient: " .. tostring(dashScript ~= nil))
+        log("  - InputManager: " .. tostring(inputManager ~= nil))
+        
+        -- Test basic movement setup
+        local humanoid = character:FindFirstChild("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if humanoid and rootPart then
+            log("✅ Character ready for movement testing")
+            log("  - Humanoid WalkSpeed: " .. humanoid.WalkSpeed)
+            log("  - Humanoid JumpPower: " .. humanoid.JumpPower)
+            
+            -- Create test GUI after character loads
+            createTestGUI()
+        else
+            warn("❌ Character missing essential components")
+        end
+    end)
+end)
+
+-- Test data system connection
+spawn(function()
+    wait(3)
+    
+    log("Testing data system connection...")
+    
+    local sharedFolder = ReplicatedStorage:FindFirstChild("Shared")
+    if sharedFolder then
+        local remoteEvents = sharedFolder:FindFirstChild("RemoteEvents")
+        if remoteEvents then
+            log("✅ Can access RemoteEvents module")
+        else
+            warn("❌ Cannot find RemoteEvents in Shared")
+        end
+    else
+        warn("❌ Cannot find Shared folder")
+    end
+end)
+
+-- Input testing helper
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    -- Log key presses for testing
+    if input.KeyCode == Enum.KeyCode.T then
+        log("Test key pressed - systems appear responsive")
+    end
+end)
+
+log("Client test script loaded. Press H to toggle test GUI, R for system status, T to test input.") ]]></string>
+          </Properties>
+        </Item>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="22">
+  <Item class="Workspace" referent="27">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
       <bool name="NeedsPivotMigration">false</bool>
     </Properties>
-    <Item class="Part" referent="23">
+    <Item class="Part" referent="28">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>

@@ -13,6 +13,11 @@ function RemoteHandler:Init()
     local getPlayerDataRemote = RemoteEvents:GetRemoteFunction(RemoteEvents.GetPlayerData)
     getPlayerDataRemote.OnServerInvoke = function(player)
         local profile = DataManager:Get(player)
+        if not profile then
+            warn("RemoteHandler: No profile found for player", player.Name, "- returning nil")
+            return nil
+        end
+        print("RemoteHandler: Returning profile for player", player.Name)
         return profile
     end
     
