@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DataHandler = require(script.Parent.DataHandler)
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 
 local MovementController = {}
 
@@ -39,6 +40,9 @@ local character = nil
 local humanoid = nil
 local rootPart = nil
 
+-- Note: Wallrun animation is now handled by WallRunAlignment.client.luau in StarterCharacterScripts
+-- This provides server-validated wallrun alignment data for proper animation orientation
+
 -- Movement state (dash-related variables removed)
 local movementState = {
     isSprinting = false,
@@ -62,6 +66,9 @@ local keysPressed = {
 -- Events (OnDash removed - handled by StarterCharacterScripts system)
 MovementController.OnWallRun = Instance.new("BindableEvent")
 MovementController.OnStaminaChanged = Instance.new("BindableEvent")
+
+-- Note: Wallrun animation and orientation logic moved to WallRunAlignment.client.luau
+-- This MovementController now only handles client-side physics and fires events to server
 
 -- Get current player stats
 local function getPlayerStats()
@@ -109,11 +116,11 @@ end
 
 -- Enhanced wall detection - more precise and prevents false positives
 local function isStillTouchingWall()
-    if not rootPart or not humanoid then return false, nil end
+    if not rootPart or not humanoid then return false, nil, nil end
     
     -- Only detect walls when moving and slightly off the ground (prevents hugging issues)
     if humanoid.MoveDirection.Magnitude < 0.1 or rootPart.Position.Y < workspace.FallenPartsDestroyHeight + 5 then
-        return false, nil
+        return false, nil, nil
     end
     
     local rayParams = RaycastParams.new()
@@ -138,12 +145,12 @@ local function isStillTouchingWall()
             
             -- Only return true if we're moving somewhat parallel to the wall (not directly into it)
             if math.abs(dotProduct) < 0.8 then  -- Allow some tolerance
-                return true, raycast.Instance
+                return true, raycast.Instance, wallNormal
             end
         end
     end
     
-    return false, nil
+    return false, nil, nil
 end
 
 -- Wall running detection and management
@@ -152,7 +159,7 @@ local function detectWallRunning()
     
     -- If we're currently wall running, check if we're still touching a wall
     if movementState.isWallRunning then
-        local stillTouching, wall = isStillTouchingWall()
+        local stillTouching, wall, wallNormal = isStillTouchingWall()
         
         -- Check if wall run should end
         local shouldEndWallRun = false
@@ -184,19 +191,25 @@ local function detectWallRunning()
             movementState.isWallRunning = false
             movementState.currentWall = nil
             MovementController.OnWallRun:Fire(false, nil)
+            
+            -- Send wallrun end to server
+            local wallRunRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerWallRun)
+            wallRunRemote:FireServer(false, nil)
+            print("[CLIENT] Sent wallrun END to server (natural end)")
+            
             return
         end
     else
         -- Not currently wall running, check if we should start
-        local touchingWall, wall = isStillTouchingWall()
+        local touchingWall, wall, wallNormal = isStillTouchingWall()
         
         -- Only start wall running if: moving, in air, and has some velocity
         local velocity = rootPart.AssemblyLinearVelocity
         local isInAir = not humanoid.FloorMaterial or humanoid.FloorMaterial == Enum.Material.Air
         local hasMinimumSpeed = velocity.Magnitude > 10
         
-        if touchingWall and humanoid and humanoid.MoveDirection.Magnitude > 0 and isInAir and hasMinimumSpeed then
-            -- Start wall running
+        if touchingWall and wallNormal and humanoid and humanoid.MoveDirection.Magnitude > 0 and isInAir and hasMinimumSpeed then
+            -- Set up wallrun state and physics (animation handled by server-client system)
             movementState.currentWall = wall
             movementState.wallRunStartTime = tick()
             movementState.isWallRunning = true
@@ -209,13 +222,19 @@ local function detectWallRunning()
             -- Prevent falling while wall running (increased Y velocity)
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.MaxForce = Vector3.new(0, 4000, 0)
-            bodyVelocity.Velocity = Vector3.new(0, 15, 0)  -- Increased from 5 to 15
+            bodyVelocity.Velocity = Vector3.new(0, 15, 0)
             bodyVelocity.Parent = rootPart
             
             -- Store reference for proper cleanup
             movementState.wallRunBodyVelocity = bodyVelocity
             
+            -- Fire local event and send to server for validation
             MovementController.OnWallRun:Fire(true, wall)
+            
+            -- Send wallrun start to server for validation and animation alignment
+            local wallRunRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerWallRun)
+            wallRunRemote:FireServer(true, rootPart.Position)
+            print("[CLIENT] Sent wallrun START to server at position:", rootPart.Position)
         end
     end
 end
@@ -279,6 +298,11 @@ local function onKeyDown(key)
             movementState.isWallRunning = false
             movementState.currentWall = nil
             MovementController.OnWallRun:Fire(false, nil)
+            
+            -- Send wallrun end to server (wall jump)
+            local wallRunRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerWallRun)
+            wallRunRemote:FireServer(false, nil)
+            print("[CLIENT] Sent wallrun END to server (wall jump)")
         end
     end
     
@@ -320,6 +344,8 @@ local function onCharacterAdded(newCharacter)
         movementState.wallRunBodyVelocity:Destroy()
         movementState.wallRunBodyVelocity = nil
     end
+    
+    -- Note: Animation reset now handled by WallRunAlignment.client.luau
     
     movementState.stamina = calculateMaxStamina()
     movementState.isSprinting = false
@@ -375,12 +401,14 @@ function MovementController:IsWallRunning()
     return movementState.isWallRunning
 end
 
+-- Note: Wallrun animation status now handled by WallRunAlignment.client.luau
+
 -- Debug function for wall running
 local function debugWallRunning()
     if movementState.isWallRunning then
         local stillTouching = isStillTouchingWall()
         local bodyVelExists = movementState.wallRunBodyVelocity ~= nil
-        print("[WALL RUN DEBUG] Still touching:", stillTouching, "| BodyVel exists:", bodyVelExists, "| Time:", math.floor(tick() - movementState.wallRunStartTime))
+        print("[WALL RUN DEBUG] Still touching:", stillTouching, "| BodyVel exists:", bodyVelExists, "| Time:", math.floor(tick() - movementState.wallRunStartTime), "| Animation handled by WallRunAlignment.client.luau")
         
         if rootPart then
             local velocity = rootPart.AssemblyLinearVelocity

@@ -51,12 +51,97 @@ local function onPlayerDashed(player, direction, dashPosition)
     print(player.Name .. " dashed")
 end
 
+-- Server-side wallrun detection and validation (identical to client logic)
+local function detectWallRunning(player)
+    if not player.Character then return false, nil, nil end
+    
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not rootPart then return false, nil, nil end
+    
+    -- Only detect walls when moving and slightly off the ground (identical to client)
+    if humanoid.MoveDirection.Magnitude < 0.1 or rootPart.Position.Y < workspace.FallenPartsDestroyHeight + 5 then
+        return false, nil, nil
+    end
+    
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {player.Character}
+    
+    -- Use shorter, more precise raycasts offset from character center (identical to client)
+    local characterCenter = rootPart.Position + Vector3.new(0, 0, 0)
+    local directions = {
+        rootPart.CFrame.RightVector * 2.5,    -- Right (shorter distance)
+        -rootPart.CFrame.RightVector * 2.5,   -- Left  (shorter distance)
+    }
+    
+    -- Check each direction for walls (identical logic to client)
+    for i, direction in pairs(directions) do
+        local raycast = workspace:Raycast(characterCenter, direction, rayParams)
+        if raycast and raycast.Instance and raycast.Instance.CanCollide then
+            -- Additional check: make sure we're actually moving toward or along the wall
+            local wallNormal = raycast.Normal
+            local moveDirection = humanoid.MoveDirection
+            local dotProduct = wallNormal:Dot(moveDirection)
+            
+            print("[SERVER DEBUG] Found wall:", raycast.Instance.Name, "| Normal:", wallNormal, "| Dot product:", dotProduct)
+            
+            -- Only return true if we're moving somewhat parallel to the wall (identical to client)
+            if math.abs(dotProduct) < 0.8 then  -- Allow some tolerance
+                print("[SERVER DEBUG] Wall validation PASSED for", player.Name)
+                return true, raycast.Instance, wallNormal
+            else
+                print("[SERVER DEBUG] Wall validation FAILED - dot product too high:", math.abs(dotProduct))
+            end
+        end
+    end
+    
+    print("[SERVER DEBUG] No walls found for", player.Name, "at position:", characterCenter)
+    
+    return false, nil, nil
+end
+
 -- Handle wall running events
 local function onPlayerWallRun(player, isWallRunning, wallPosition)
     local playerState = playerMovementStates[player]
     if not playerState then return end
     
-    playerState.isWallRunning = isWallRunning
+    -- Server-side validation for wallrunning
+    if isWallRunning then
+        local canWallRun, wall, wallNormal = detectWallRunning(player)
+        if not canWallRun then
+            -- Client claimed wallrun but server doesn't detect it - reject
+            -- Add more detailed debug information
+            local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+            local rootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if humanoid and rootPart then
+                warn("Player " .. player.Name .. " attempted invalid wallrun:")
+                warn("  - Position:", rootPart.Position)
+                warn("  - MoveDirection:", humanoid.MoveDirection)
+                warn("  - MoveDirection.Magnitude:", humanoid.MoveDirection.Magnitude)
+                warn("  - Is moving:", humanoid.MoveDirection.Magnitude > 0.1)
+                warn("  - Y position check:", rootPart.Position.Y > workspace.FallenPartsDestroyHeight + 5)
+            else
+                warn("Player " .. player.Name .. " attempted wallrun but character parts missing")
+            end
+            return
+        end
+        
+        -- Send alignment data to client for proper animation orientation
+        local alignRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.WallRunAlign)
+        alignRemote:FireClient(player, true, wallNormal, wall)
+        
+        playerState.isWallRunning = true
+        print("[SERVER] Validated wallrun for " .. player.Name .. " with wall normal:", wallNormal)
+        print("[SERVER] Sent WallRunAlign event to client")
+    else
+        -- Wallrun ended
+        local alignRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.WallRunAlign)
+        alignRemote:FireClient(player, false)
+        
+        playerState.isWallRunning = false
+    end
     
     -- Broadcast wall running to all other players
     local wallRunRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerWallRun)
@@ -142,10 +227,12 @@ function MovementHandler:Init()
     local dashRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerDashed)
     local wallRunRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerWallRun)
     local sprintRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.PlayerSprintChanged)
+    local alignRemote = RemoteEvents:GetRemoteEvent(RemoteEvents.WallRunAlign)
     
     dashRemote.OnServerEvent:Connect(onPlayerDashed)
     wallRunRemote.OnServerEvent:Connect(onPlayerWallRun)
     sprintRemote.OnServerEvent:Connect(onPlayerSprintChanged)
+    -- Note: alignRemote is server->client only, no OnServerEvent needed
     
     -- Handle player connections
     Players.PlayerAdded:Connect(initPlayerMovementState)

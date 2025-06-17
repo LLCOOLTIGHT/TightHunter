@@ -17,6 +17,7 @@ RemoteEvents.PlayerDataChanged = "PlayerDataChanged"
 RemoteEvents.PlayerDashed = "PlayerDashed"
 RemoteEvents.PlayerWallRun = "PlayerWallRun"
 RemoteEvents.PlayerSprintChanged = "PlayerSprintChanged"
+RemoteEvents.WallRunAlign = "WallRunAlign"
 
 -- Combat Events
 RemoteEvents.DealDamage = "DealDamage"
