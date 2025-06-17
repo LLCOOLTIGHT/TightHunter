@@ -68,7 +68,7 @@ end)
 -- Setup movement event listeners
 -- Old dash event listener removed - dash system now handled by StarterCharacterScripts
 
-MovementController.OnWallRun.Event:Connect(function(isWallRunning, wall)
+MovementController.OnWallRun.Event:Connect(function(isWallRunning, wall, side)
     if isWallRunning then
         -- Wall running started - can add visual effects here
     else
