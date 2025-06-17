@@ -46,6 +46,7 @@ local movementState = {
     stamina = Config.MaxStamina,
     wallRunStartTime = 0,
     currentWall = nil,
+    wallRunSide = nil, -- "Left" or "Right" when wall running
 }
 
 -- Input tracking
@@ -109,27 +110,35 @@ end
 -- Wall running detection
 local function detectWallRunning()
     if not rootPart then return end
-    
+
+    -- Cast rays to both sides to detect nearby walls
     local raycast = workspace:Raycast(rootPart.Position, rootPart.CFrame.RightVector * 5)
-    if not raycast then
+    local side = nil
+    if raycast then
+        side = "Right"
+    else
         raycast = workspace:Raycast(rootPart.Position, -rootPart.CFrame.RightVector * 5)
+        if raycast then
+            side = "Left"
+        end
     end
-    
+
     if raycast and raycast.Instance and raycast.Instance.CanCollide then
         local wall = raycast.Instance
-        if wall ~= movementState.currentWall then
+        if wall ~= movementState.currentWall or side ~= movementState.wallRunSide then
             movementState.currentWall = wall
             movementState.wallRunStartTime = tick()
             movementState.isWallRunning = true
-            
+            movementState.wallRunSide = side
+
             -- Prevent falling while wall running
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.MaxForce = Vector3.new(0, 4000, 0)
             bodyVelocity.Velocity = Vector3.new(0, 5, 0)
             bodyVelocity.Parent = rootPart
-            
-            MovementController.OnWallRun:Fire(true, wall)
-            
+
+            MovementController.OnWallRun:Fire(true, wall, side)
+
             -- End wall run after duration
             game:GetService("Debris"):AddItem(bodyVelocity, Config.WallRunDuration)
         end
@@ -137,7 +146,8 @@ local function detectWallRunning()
         if movementState.isWallRunning then
             movementState.isWallRunning = false
             movementState.currentWall = nil
-            MovementController.OnWallRun:Fire(false, nil)
+            movementState.wallRunSide = nil
+            MovementController.OnWallRun:Fire(false, nil, nil)
         end
     end
 end
@@ -256,6 +266,10 @@ end
 
 function MovementController:IsWallRunning()
     return movementState.isWallRunning
+end
+
+function MovementController:GetWallRunSide()
+    return movementState.wallRunSide
 end
 
 -- Debug function removed to reduce console spam
