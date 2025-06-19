@@ -68,15 +68,19 @@ end)
 -- Setup movement event listeners
 -- Old dash event listener removed - dash system now handled by StarterCharacterScripts
 
-MovementController.OnWallRun.Event:Connect(function(isWallRunning, wall)
+--[[
+MovementController.OnWallRun.Event:Connect(function(isWallRunning, wall, side)
     if isWallRunning then
         -- Wall running started - can add visual effects here
     else
         -- Wall running stopped
     end
 end)
+]]
+-- Wallrun events are now handled internally by WallRunController
 
 MovementController.OnStaminaChanged.Event:Connect(function(currentStamina, maxStamina)
+    if not currentStamina or not maxStamina then return end -- Safety check
     -- This could update a stamina UI bar
     local staminaPercent = math.floor((currentStamina / maxStamina) * 100)
     if staminaPercent <= 20 then
